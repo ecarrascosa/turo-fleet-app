@@ -29,6 +29,7 @@ export default function Home() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [view, setView] = useState<'fleet' | 'map' | 'analytics'>('fleet');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -95,6 +96,13 @@ export default function Home() {
 
   const selected = cars.find(c => c.carId === selectedCar);
 
+  // Close sidebar when selecting a car on mobile
+  const selectCar = (carId: string | null) => {
+    setSelectedCar(carId);
+    setDetailTab('info');
+    setSidebarOpen(false);
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center h-full">
       <div className="text-xl text-gray-400 animate-pulse">Loading fleet...</div>
@@ -104,39 +112,63 @@ export default function Home() {
   return (
     <div className="h-full flex flex-col">
       {/* Top Header */}
-      <header className="bg-slate-800 text-white h-12 flex items-center justify-between px-4 shrink-0 z-50">
-        <div className="flex items-center gap-3">
-          <span className="font-bold text-lg">⚡ Fleet Manager</span>
-          <span className="text-slate-400 text-sm hidden sm:block">
+      <header className="bg-slate-800 text-white h-12 flex items-center justify-between px-3 sm:px-4 shrink-0 z-50">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Hamburger - mobile only */}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="lg:hidden w-8 h-8 flex items-center justify-center rounded hover:bg-slate-700"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sidebarOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+            </svg>
+          </button>
+          <span className="font-bold text-base sm:text-lg">⚡ Fleet</span>
+          <span className="text-slate-400 text-xs sm:text-sm hidden sm:block">
             {cars.length} vehicles · {cars.filter(c => c.online).length} online
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 sm:gap-3">
+          {/* Desktop nav tabs - hidden on mobile (bottom nav used instead) */}
           <button
             onClick={() => { setView('fleet'); setSelectedCar(null); }}
-            className={`px-3 py-1 text-sm rounded ${view === 'fleet' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
+            className={`hidden lg:block px-3 py-1 text-sm rounded ${view === 'fleet' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
           >📋 Fleet</button>
           <button
             onClick={() => { setView('map'); setSelectedCar(null); }}
-            className={`px-3 py-1 text-sm rounded ${view === 'map' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
+            className={`hidden lg:block px-3 py-1 text-sm rounded ${view === 'map' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
           >🗺️ Map</button>
           <button
             onClick={() => { setView('analytics'); if (!analytics) fetch('/api/analytics').then(r => r.json()).then(setAnalytics); }}
-            className={`px-3 py-1 text-sm rounded ${view === 'analytics' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
+            className={`hidden lg:block px-3 py-1 text-sm rounded ${view === 'analytics' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
           >📊 Analytics</button>
+          {/* Lock All - always visible */}
           <button
             onClick={() => sendCommand('lock-all')}
             disabled={bulkLoading}
-            className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded transition-colors"
+            className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-1.5 rounded transition-colors"
           >
-            {bulkLoading ? 'Locking...' : '🔒 Lock All'}
+            {bulkLoading ? '...' : '🔒 Lock All'}
           </button>
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Sidebar Overlay - mobile */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
-        <aside className="w-56 bg-slate-900 text-white flex flex-col shrink-0 z-40">
+        <aside className={`
+          fixed lg:relative top-12 bottom-14 lg:bottom-0 left-0 w-64 sm:w-56
+          bg-slate-900 text-white flex flex-col shrink-0 z-40
+          transform transition-transform duration-200 ease-in-out
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}>
           {/* Search */}
           <div className="p-3">
             <input
@@ -156,7 +188,7 @@ export default function Home() {
               return (
                 <button
                   key={car.carId}
-                  onClick={() => { setSelectedCar(isSelected ? null : car.carId); setDetailTab('info'); setView('map'); }}
+                  onClick={() => { selectCar(isSelected ? null : car.carId); setView('map'); }}
                   className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-colors ${
                     isSelected ? 'bg-slate-700' : 'hover:bg-slate-800'
                   }`}
@@ -186,17 +218,17 @@ export default function Home() {
         <div className="flex-1 relative">
           {/* Fleet Overview */}
           {view === 'fleet' && (
-            <div className="absolute inset-0 overflow-y-auto p-6 bg-gray-50">
+            <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 bg-gray-50 pb-20 lg:pb-6">
               <div className="max-w-7xl mx-auto">
-                <div className="flex items-center justify-between mb-4">
-                  <h1 className="text-2xl font-bold text-gray-900">📋 Fleet Overview</h1>
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">📋 Fleet Overview</h1>
+                  <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-500">
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> {cars.filter(c => c.online).length} Online</span>
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> {cars.filter(c => !c.online).length} Offline</span>
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> {activeRentals.length} Rented</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                   {filteredCars.map(car => {
                     const icon = getCarIcon(car.name);
                     const photo = getCarPhoto(car.plate);
@@ -205,12 +237,12 @@ export default function Home() {
                     return (
                       <div
                         key={car.carId}
-                        className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden cursor-pointer"
-                        onClick={() => { setSelectedCar(car.carId); setDetailTab('info'); setView('map'); }}
+                        className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden cursor-pointer active:scale-[0.98]"
+                        onClick={() => { selectCar(car.carId); setView('map'); }}
                       >
                         {/* Car photo or colored header */}
                         {photo ? (
-                          <div className="h-32 bg-gray-100 relative overflow-hidden">
+                          <div className="h-28 sm:h-32 bg-gray-100 relative overflow-hidden">
                             <img src={photo} alt={car.name} className="w-full h-full object-cover" />
                             <div className="absolute top-2 right-2 flex gap-1">
                               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${car.online ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
@@ -265,13 +297,13 @@ export default function Home() {
                             <button
                               onClick={(e) => { e.stopPropagation(); sendCommand('lock-kill', car.carId); }}
                               disabled={actionLoading[car.carId]}
-                              className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-medium py-1.5 rounded-lg transition-colors disabled:opacity-50"
-                            >🔒 Lock + Kill</button>
+                              className="flex-1 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 text-xs font-medium py-2 rounded-lg transition-colors disabled:opacity-50"
+                            >🔒 Lock</button>
                             <button
                               onClick={(e) => { e.stopPropagation(); sendCommand('unlock-restore', car.carId); }}
                               disabled={actionLoading[car.carId]}
-                              className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 text-xs font-medium py-1.5 rounded-lg transition-colors disabled:opacity-50"
-                            >🔓 Unlock + Start</button>
+                              className="flex-1 bg-green-50 hover:bg-green-100 active:bg-green-200 text-green-700 text-xs font-medium py-2 rounded-lg transition-colors disabled:opacity-50"
+                            >🔓 Unlock</button>
                           </div>
                         </div>
                       </div>
@@ -292,148 +324,57 @@ export default function Home() {
                     rentedPlates={rentedPlates}
                     onCommand={sendCommand}
                     selectedCarId={selectedCar}
-                    onSelectCar={(carId) => { setSelectedCar(carId); setDetailTab('info'); }}
+                    onSelectCar={(carId) => selectCar(carId)}
                   />
                 </Suspense>
               </div>
 
-              {/* Detail Panel - slides over map */}
+              {/* Detail Panel - side on desktop, bottom sheet on mobile */}
               {selected && (
-                <div className="absolute top-0 left-0 bottom-0 w-80 bg-white shadow-2xl z-30 flex flex-col overflow-hidden">
-                  {/* Close */}
-                  <button
-                    onClick={() => setSelectedCar(null)}
-                    className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 z-10"
-                  >✕</button>
-
-                  {/* Car Header */}
-                  <div className="p-4 border-b border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center text-xl"
-                        style={{ backgroundColor: getCarIcon(selected.name).color + '20', border: `2px solid ${selected.online ? '#22c55e' : '#ef4444'}` }}
-                      >
-                        {getCarIcon(selected.name).emoji}
-                      </div>
-                      <div>
-                        <h2 className="font-bold text-lg text-gray-900">{selected.name}</h2>
-                        <p className="text-sm text-gray-500">{selected.plate}</p>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center gap-2">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${selected.online ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {selected.online ? (selected.moving ? `Moving ${selected.speed}mph` : 'Parked') : 'Offline'}
-                      </span>
-                      {isRented(selected.plate) && (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Rented</span>
-                      )}
-                    </div>
+                <>
+                  {/* Desktop: side panel */}
+                  <div className="hidden lg:flex absolute top-0 left-0 bottom-0 w-80 bg-white shadow-2xl z-30 flex-col overflow-hidden">
+                    <DetailPanel
+                      car={selected}
+                      detailTab={detailTab}
+                      setDetailTab={setDetailTab}
+                      isRented={isRented(selected.plate)}
+                      actionLoading={actionLoading}
+                      sendCommand={sendCommand}
+                      onClose={() => setSelectedCar(null)}
+                    />
                   </div>
 
-                  {/* Tabs */}
-                  <div className="flex border-b border-gray-100">
-                    <button
-                      onClick={() => setDetailTab('info')}
-                      className={`flex-1 py-2.5 text-sm font-medium ${detailTab === 'info' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'}`}
-                    >INFO</button>
-                    <button
-                      onClick={() => setDetailTab('controls')}
-                      className={`flex-1 py-2.5 text-sm font-medium ${detailTab === 'controls' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'}`}
-                    >CONTROLS</button>
+                  {/* Mobile: bottom sheet */}
+                  <div className="lg:hidden absolute bottom-14 left-0 right-0 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] z-30 rounded-t-2xl max-h-[70vh] flex flex-col overflow-hidden animate-[slideUp_0.2s_ease-out]">
+                    {/* Drag handle */}
+                    <div className="flex justify-center pt-2 pb-1">
+                      <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                    </div>
+                    <DetailPanel
+                      car={selected}
+                      detailTab={detailTab}
+                      setDetailTab={setDetailTab}
+                      isRented={isRented(selected.plate)}
+                      actionLoading={actionLoading}
+                      sendCommand={sendCommand}
+                      onClose={() => setSelectedCar(null)}
+                    />
                   </div>
-
-                  {/* Tab Content */}
-                  <div className="flex-1 overflow-y-auto p-4">
-                    {detailTab === 'info' && (
-                      <div className="space-y-4">
-                        <div className="space-y-3">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">ACC</span>
-                            <span className="text-gray-900 font-medium">{selected.acc}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Door</span>
-                            <span className="text-gray-900 font-medium">{selected.locked ? '🔒 Locked' : '🔓 Open'}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Engine</span>
-                            <span className="text-gray-900 font-medium">{selected.engineCut ? '⛔ Cut' : '✅ Active'}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Voltage</span>
-                            <span className="text-gray-900 font-medium">{selected.voltage}</span>
-                          </div>
-                          {selected.lat !== 0 && (
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-500">Location</span>
-                              <span className="text-gray-900 font-medium">{selected.lat.toFixed(4)}, {selected.lon.toFixed(4)}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {detailTab === 'controls' && (
-                      <div className="space-y-3">
-                        <button
-                          onClick={() => sendCommand('lock-kill', selected.carId)}
-                          disabled={actionLoading[selected.carId]}
-                          className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
-                        >
-                          {actionLoading[selected.carId] ? 'Sending...' : '🔒 Lock + Kill Engine'}
-                        </button>
-                        <button
-                          onClick={() => sendCommand('unlock-restore', selected.carId)}
-                          disabled={actionLoading[selected.carId]}
-                          className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
-                        >
-                          {actionLoading[selected.carId] ? 'Sending...' : '🔓 Unlock + Start Engine'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Bottom Status Bar */}
-                  <div className="border-t border-gray-100 p-3 flex justify-around">
-                    <div className="text-center">
-                      <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center text-lg ${selected.online ? 'bg-green-100' : 'bg-red-100'}`}>
-                        {selected.online ? '📡' : '📴'}
-                      </div>
-                      <div className="text-[10px] text-gray-500 mt-1">Device</div>
-                    </div>
-                    <div className="text-center">
-                      <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center text-lg ${selected.locked ? 'bg-red-100' : 'bg-green-100'}`}>
-                        {selected.locked ? '🔒' : '🔓'}
-                      </div>
-                      <div className="text-[10px] text-gray-500 mt-1">Door</div>
-                    </div>
-                    <div className="text-center">
-                      <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center text-lg ${selected.engineCut ? 'bg-red-100' : 'bg-green-100'}`}>
-                        {selected.engineCut ? '⛔' : '✅'}
-                      </div>
-                      <div className="text-[10px] text-gray-500 mt-1">Engine</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="w-10 h-10 mx-auto rounded-full flex items-center justify-center text-lg bg-gray-100">
-                        🔋
-                      </div>
-                      <div className="text-[10px] text-gray-500 mt-1">{selected.voltage || 'N/A'}</div>
-                    </div>
-                  </div>
-                </div>
+                </>
               )}
             </>
           )}
 
           {/* Analytics View */}
           {view === 'analytics' && (
-            <div className="absolute inset-0 overflow-y-auto p-6 bg-gray-50">
+            <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 bg-gray-50 pb-20 lg:pb-6">
               {!analytics ? (
                 <div className="text-gray-400 animate-pulse">Loading analytics...</div>
               ) : (
-                <div className="max-w-6xl mx-auto space-y-6">
-                  <h1 className="text-2xl font-bold text-gray-900">📊 Analytics</h1>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">📊 Analytics</h1>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                     {[
                       { label: 'Total Revenue', value: `$${analytics.summary.totalRevenue.toLocaleString()}`, color: 'text-green-600' },
                       { label: 'Total Trips', value: analytics.summary.totalTrips, color: 'text-gray-900' },
@@ -444,59 +385,59 @@ export default function Home() {
                       { label: 'Cancellations', value: analytics.summary.cancelledTrips, color: 'text-red-600' },
                       { label: 'Revenue / Day', value: `$${analytics.summary.totalDays ? (analytics.summary.totalRevenue / analytics.summary.totalDays).toFixed(0) : 0}`, color: 'text-green-600' },
                     ].map(s => (
-                      <div key={s.label} className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-                        <p className="text-gray-500 text-sm">{s.label}</p>
-                        <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                      <div key={s.label} className="rounded-xl border border-gray-200 bg-white shadow-sm p-3 sm:p-4">
+                        <p className="text-gray-500 text-xs sm:text-sm">{s.label}</p>
+                        <p className={`text-lg sm:text-2xl font-bold ${s.color}`}>{s.value}</p>
                       </div>
                     ))}
                   </div>
 
-                  <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-                    <h2 className="font-bold text-lg text-gray-900 mb-4">📈 Monthly Revenue</h2>
+                  <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-3 sm:p-4">
+                    <h2 className="font-bold text-base sm:text-lg text-gray-900 mb-3 sm:mb-4">📈 Monthly Revenue</h2>
                     <div className="space-y-2">
                       {analytics.monthlyStats.map((m: any) => {
                         const maxRev = Math.max(...analytics.monthlyStats.map((s: any) => s.revenue));
                         const pct = maxRev ? (m.revenue / maxRev) * 100 : 0;
                         return (
-                          <div key={m.month} className="flex items-center gap-3">
-                            <span className="text-sm text-gray-500 w-20 shrink-0">{m.month}</span>
-                            <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden">
+                          <div key={m.month} className="flex items-center gap-2 sm:gap-3">
+                            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 shrink-0">{m.month}</span>
+                            <div className="flex-1 h-5 sm:h-6 bg-gray-100 rounded-full overflow-hidden">
                               <div className="h-full bg-green-500 rounded-full" style={{ width: `${pct}%` }} />
                             </div>
-                            <span className="text-sm font-medium text-gray-900 w-24 text-right">${Math.round(m.revenue).toLocaleString()}</span>
-                            <span className="text-xs text-gray-400 w-16 text-right">{m.trips} trips</span>
+                            <span className="text-xs sm:text-sm font-medium text-gray-900 w-16 sm:w-24 text-right">${Math.round(m.revenue).toLocaleString()}</span>
+                            <span className="text-xs text-gray-400 w-12 sm:w-16 text-right hidden sm:block">{m.trips} trips</span>
                           </div>
                         );
                       })}
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
-                    <h2 className="font-bold text-lg text-gray-900 mb-4">🏆 Vehicle Rankings</h2>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                  <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-3 sm:p-4">
+                    <h2 className="font-bold text-base sm:text-lg text-gray-900 mb-3 sm:mb-4">🏆 Vehicle Rankings</h2>
+                    <div className="overflow-x-auto -mx-3 sm:mx-0">
+                      <table className="w-full text-xs sm:text-sm min-w-[600px]">
                         <thead>
                           <tr className="text-gray-500 border-b border-gray-200">
-                            <th className="text-left py-2 pr-4">#</th>
-                            <th className="text-left py-2 pr-4">Vehicle</th>
-                            <th className="text-left py-2 pr-4">Plate</th>
-                            <th className="text-right py-2 pr-4">Trips</th>
-                            <th className="text-right py-2 pr-4">Days</th>
-                            <th className="text-right py-2 pr-4">Revenue</th>
-                            <th className="text-right py-2 pr-4">$/Trip</th>
+                            <th className="text-left py-2 pr-3">#</th>
+                            <th className="text-left py-2 pr-3">Vehicle</th>
+                            <th className="text-left py-2 pr-3">Plate</th>
+                            <th className="text-right py-2 pr-3">Trips</th>
+                            <th className="text-right py-2 pr-3">Days</th>
+                            <th className="text-right py-2 pr-3">Revenue</th>
+                            <th className="text-right py-2 pr-3">$/Trip</th>
                             <th className="text-right py-2">$/Day</th>
                           </tr>
                         </thead>
                         <tbody>
                           {analytics.vehicleStats.map((v: any, i: number) => (
                             <tr key={v.plate + v.name} className="border-b border-gray-100 hover:bg-gray-50">
-                              <td className="py-2 pr-4 text-gray-400">{i + 1}</td>
-                              <td className="py-2 pr-4 font-medium text-gray-900">{v.name}</td>
-                              <td className="py-2 pr-4 text-gray-500">{v.plate}</td>
-                              <td className="py-2 pr-4 text-right text-gray-700">{v.trips}</td>
-                              <td className="py-2 pr-4 text-right text-gray-700">{v.days}</td>
-                              <td className="py-2 pr-4 text-right text-green-600 font-medium">${Math.round(v.revenue).toLocaleString()}</td>
-                              <td className="py-2 pr-4 text-right text-gray-700">${Math.round(v.avgPerTrip)}</td>
+                              <td className="py-2 pr-3 text-gray-400">{i + 1}</td>
+                              <td className="py-2 pr-3 font-medium text-gray-900">{v.name}</td>
+                              <td className="py-2 pr-3 text-gray-500">{v.plate}</td>
+                              <td className="py-2 pr-3 text-right text-gray-700">{v.trips}</td>
+                              <td className="py-2 pr-3 text-right text-gray-700">{v.days}</td>
+                              <td className="py-2 pr-3 text-right text-green-600 font-medium">${Math.round(v.revenue).toLocaleString()}</td>
+                              <td className="py-2 pr-3 text-right text-gray-700">${Math.round(v.avgPerTrip)}</td>
                               <td className="py-2 text-right text-gray-700">${Math.round(v.avgPerDay)}</td>
                             </tr>
                           ))}
@@ -511,14 +452,185 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Bottom Navigation - mobile only */}
+      <nav className="lg:hidden bg-white border-t border-gray-200 h-14 flex items-center justify-around shrink-0 z-50 safe-bottom">
+        <button
+          onClick={() => { setView('fleet'); setSelectedCar(null); setSidebarOpen(false); }}
+          className={`flex flex-col items-center gap-0.5 px-4 py-1 ${view === 'fleet' ? 'text-blue-600' : 'text-gray-400'}`}
+        >
+          <span className="text-lg">📋</span>
+          <span className="text-[10px] font-medium">Fleet</span>
+        </button>
+        <button
+          onClick={() => { setView('map'); setSelectedCar(null); setSidebarOpen(false); }}
+          className={`flex flex-col items-center gap-0.5 px-4 py-1 ${view === 'map' ? 'text-blue-600' : 'text-gray-400'}`}
+        >
+          <span className="text-lg">🗺️</span>
+          <span className="text-[10px] font-medium">Map</span>
+        </button>
+        <button
+          onClick={() => { setView('analytics'); setSidebarOpen(false); if (!analytics) fetch('/api/analytics').then(r => r.json()).then(setAnalytics); }}
+          className={`flex flex-col items-center gap-0.5 px-4 py-1 ${view === 'analytics' ? 'text-blue-600' : 'text-gray-400'}`}
+        >
+          <span className="text-lg">📊</span>
+          <span className="text-[10px] font-medium">Analytics</span>
+        </button>
+      </nav>
+
+      {/* Desktop nav buttons in header - hidden on mobile (using bottom nav instead) */}
+      <style jsx global>{`
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        .safe-bottom {
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+      `}</style>
+
       {/* Toast */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-[9999] px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white transition-all animate-[slideUp_0.3s_ease-out] ${
+        <div className={`fixed bottom-20 lg:bottom-6 right-4 lg:right-6 z-[9999] px-4 sm:px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white transition-all animate-[slideUp_0.3s_ease-out] ${
           toast.type === 'success' ? 'bg-slate-800' : 'bg-red-600'
         }`}>
           {toast.message}
         </div>
       )}
     </div>
+  );
+}
+
+/* Detail Panel Component */
+function DetailPanel({ car, detailTab, setDetailTab, isRented, actionLoading, sendCommand, onClose }: {
+  car: Car;
+  detailTab: 'info' | 'controls';
+  setDetailTab: (t: 'info' | 'controls') => void;
+  isRented: boolean;
+  actionLoading: Record<string, boolean>;
+  sendCommand: (action: string, carId?: string) => void;
+  onClose: () => void;
+}) {
+  const icon = getCarIcon(car.name);
+  return (
+    <>
+      {/* Close */}
+      <button
+        onClick={onClose}
+        className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 z-10"
+      >✕</button>
+
+      {/* Car Header */}
+      <div className="p-4 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center text-xl shrink-0"
+            style={{ backgroundColor: icon.color + '20', border: `2px solid ${car.online ? '#22c55e' : '#ef4444'}` }}
+          >
+            {icon.emoji}
+          </div>
+          <div className="min-w-0">
+            <h2 className="font-bold text-lg text-gray-900 truncate">{car.name}</h2>
+            <p className="text-sm text-gray-500">{car.plate}</p>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${car.online ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            {car.online ? (car.moving ? `Moving ${car.speed}mph` : 'Parked') : 'Offline'}
+          </span>
+          {isRented && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Rented</span>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-100">
+        <button
+          onClick={() => setDetailTab('info')}
+          className={`flex-1 py-2.5 text-sm font-medium ${detailTab === 'info' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'}`}
+        >INFO</button>
+        <button
+          onClick={() => setDetailTab('controls')}
+          className={`flex-1 py-2.5 text-sm font-medium ${detailTab === 'controls' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'}`}
+        >CONTROLS</button>
+      </div>
+
+      {/* Tab Content */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {detailTab === 'info' && (
+          <div className="space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">ACC</span>
+              <span className="text-gray-900 font-medium">{car.acc}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Door</span>
+              <span className="text-gray-900 font-medium">{car.locked ? '🔒 Locked' : '🔓 Open'}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Engine</span>
+              <span className="text-gray-900 font-medium">{car.engineCut ? '⛔ Cut' : '✅ Active'}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Voltage</span>
+              <span className="text-gray-900 font-medium">{car.voltage}</span>
+            </div>
+            {car.lat !== 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Location</span>
+                <span className="text-gray-900 font-medium">{car.lat.toFixed(4)}, {car.lon.toFixed(4)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {detailTab === 'controls' && (
+          <div className="space-y-3">
+            <button
+              onClick={() => sendCommand('lock-kill', car.carId)}
+              disabled={actionLoading[car.carId]}
+              className="w-full bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
+            >
+              {actionLoading[car.carId] ? 'Sending...' : '🔒 Lock + Kill Engine'}
+            </button>
+            <button
+              onClick={() => sendCommand('unlock-restore', car.carId)}
+              disabled={actionLoading[car.carId]}
+              className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
+            >
+              {actionLoading[car.carId] ? 'Sending...' : '🔓 Unlock + Start Engine'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Status Bar */}
+      <div className="border-t border-gray-100 p-3 flex justify-around">
+        <div className="text-center">
+          <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center text-lg ${car.online ? 'bg-green-100' : 'bg-red-100'}`}>
+            {car.online ? '📡' : '📴'}
+          </div>
+          <div className="text-[10px] text-gray-500 mt-1">Device</div>
+        </div>
+        <div className="text-center">
+          <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center text-lg ${car.locked ? 'bg-red-100' : 'bg-green-100'}`}>
+            {car.locked ? '🔒' : '🔓'}
+          </div>
+          <div className="text-[10px] text-gray-500 mt-1">Door</div>
+        </div>
+        <div className="text-center">
+          <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center text-lg ${car.engineCut ? 'bg-red-100' : 'bg-green-100'}`}>
+            {car.engineCut ? '⛔' : '✅'}
+          </div>
+          <div className="text-[10px] text-gray-500 mt-1">Engine</div>
+        </div>
+        <div className="text-center">
+          <div className="w-10 h-10 mx-auto rounded-full flex items-center justify-center text-lg bg-gray-100">
+            🔋
+          </div>
+          <div className="text-[10px] text-gray-500 mt-1">{car.voltage || 'N/A'}</div>
+        </div>
+      </div>
+    </>
   );
 }
