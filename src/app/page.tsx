@@ -123,7 +123,7 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sidebarOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
             </svg>
           </button>
-          <span className="font-bold text-base sm:text-lg">⚡ Fleet</span>
+          <a href="/" className="font-bold text-base sm:text-lg hover:text-slate-300 transition-colors">⚡ Fleet</a>
           <span className="text-slate-400 text-xs sm:text-sm hidden sm:block">
             {cars.length} vehicles · {cars.filter(c => c.online).length} online
           </span>
