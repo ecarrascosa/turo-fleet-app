@@ -16,6 +16,22 @@ interface Rental {
   plate: string; status: string;
 }
 
+interface Reservation {
+  reservationId: string;
+  guestName: string;
+  guestPhone?: string;
+  vehicleYear: string;
+  vehicleModel: string;
+  tripStart: string;
+  tripEnd: string;
+  earnings?: number;
+  distanceIncluded?: number;
+  location?: string;
+  status: 'booked' | 'active' | 'completed' | 'cancelled';
+  carId?: string;
+  messages: Array<{ text: string; timestamp: string }>;
+}
+
 export default function Home() {
   const [cars, setCars] = useState<Car[]>([]);
   const [activeRentals, setActiveRentals] = useState<Rental[]>([]);
@@ -27,7 +43,8 @@ export default function Home() {
   const [detailTab, setDetailTab] = useState<'info' | 'controls'>('info');
   const [search, setSearch] = useState('');
   const [analytics, setAnalytics] = useState<any>(null);
-  const [view, setView] = useState<'fleet' | 'map' | 'analytics'>('map');
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [view, setView] = useState<'fleet' | 'map' | 'reservations' | 'analytics'>('map');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -38,14 +55,16 @@ export default function Home() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [fleetRes, rentalRes] = await Promise.all([
-        fetch('/api/fleet'), fetch('/api/rentals')
+      const [fleetRes, rentalRes, resRes] = await Promise.all([
+        fetch('/api/fleet'), fetch('/api/rentals'), fetch('/api/reservations')
       ]);
       const fleetData = await fleetRes.json();
       const rentalData = await rentalRes.json();
+      const resData = await resRes.json();
       if (fleetData.cars) setCars(fleetData.cars);
       if (rentalData.active) setActiveRentals(rentalData.active);
       if (rentalData.all) setAllRentals(rentalData.all);
+      if (resData.reservations) setReservations(resData.reservations);
     } catch (e) { console.error(e); }
     setLoading(false);
   }, []);
@@ -138,6 +157,10 @@ export default function Home() {
             onClick={() => { setView('map'); setSelectedCar(null); }}
             className={`hidden lg:block px-3 py-1 text-sm rounded ${view === 'map' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
           >🗺️ Map</button>
+          <button
+            onClick={() => { setView('reservations'); setSelectedCar(null); }}
+            className={`hidden lg:block px-3 py-1 text-sm rounded ${view === 'reservations' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
+          >📅 Trips</button>
           <button
             onClick={() => { setView('analytics'); if (!analytics) fetch('/api/analytics').then(r => r.json()).then(setAnalytics); }}
             className={`hidden lg:block px-3 py-1 text-sm rounded ${view === 'analytics' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
@@ -366,6 +389,102 @@ export default function Home() {
             </>
           )}
 
+          {/* Reservations View */}
+          {view === 'reservations' && (
+            <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 bg-gray-50 pb-20 lg:pb-6">
+              <div className="max-w-5xl mx-auto">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">📅 Reservations</h1>
+                  <div className="flex items-center gap-3 text-xs sm:text-sm text-gray-500">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> {reservations.filter(r => r.status === 'active').length} Active</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> {reservations.filter(r => r.status === 'booked').length} Upcoming</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> {reservations.filter(r => r.status === 'completed').length} Completed</span>
+                  </div>
+                </div>
+
+                {reservations.length === 0 ? (
+                  <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                    <div className="text-4xl mb-3">📭</div>
+                    <h2 className="text-lg font-semibold text-gray-700 mb-1">No reservations yet</h2>
+                    <p className="text-sm text-gray-500">Connect Gmail to automatically import Turo bookings, or use the API to add them manually.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {reservations.map(res => {
+                      const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
+                        active: { bg: 'bg-green-100', text: 'text-green-700', label: 'Active' },
+                        booked: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Upcoming' },
+                        completed: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Completed' },
+                        cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Cancelled' },
+                      };
+                      const sc = statusConfig[res.status] || statusConfig.booked;
+                      const start = new Date(res.tripStart);
+                      const end = new Date(res.tripEnd);
+                      const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                      const matchedCar = cars.find(c => c.carId === res.carId);
+
+                      return (
+                        <div key={res.reservationId} className={`bg-white rounded-xl border border-gray-200 shadow-sm p-4 ${res.status === 'cancelled' ? 'opacity-60' : ''}`}>
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-lg">
+                                👤
+                              </div>
+                              <div>
+                                <div className="font-semibold text-gray-900">{res.guestName}</div>
+                                {res.guestPhone && <div className="text-xs text-gray-500">{res.guestPhone}</div>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${sc.bg} ${sc.text}`}>
+                                {sc.label}
+                              </span>
+                              <span className="text-xs text-gray-400">#{res.reservationId}</span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                            <div>
+                              <div className="text-gray-400 text-xs mb-0.5">Vehicle</div>
+                              <div className="font-medium text-gray-900">{res.vehicleModel} {res.vehicleYear}</div>
+                              {matchedCar && <div className="text-xs text-gray-400">{matchedCar.plate}</div>}
+                            </div>
+                            <div>
+                              <div className="text-gray-400 text-xs mb-0.5">Trip</div>
+                              <div className="font-medium text-gray-900">
+                                {start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} → {end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </div>
+                              <div className="text-xs text-gray-400">{days} day{days > 1 ? 's' : ''}</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-400 text-xs mb-0.5">Earnings</div>
+                              <div className="font-medium text-green-600">{res.earnings ? `$${res.earnings.toFixed(2)}` : '—'}</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-400 text-xs mb-0.5">Location</div>
+                              <div className="font-medium text-gray-900 text-xs">{res.location || '—'}</div>
+                            </div>
+                          </div>
+
+                          {res.messages.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                              <div className="text-xs text-gray-400 mb-1">💬 Messages</div>
+                              {res.messages.slice(-3).map((msg, i) => (
+                                <div key={i} className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-1.5 mb-1">
+                                  {msg.text}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Analytics View */}
           {view === 'analytics' && (
             <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 bg-gray-50 pb-20 lg:pb-6">
@@ -467,6 +586,13 @@ export default function Home() {
         >
           <span className="text-lg">🗺️</span>
           <span className="text-[10px] font-medium">Map</span>
+        </button>
+        <button
+          onClick={() => { setView('reservations'); setSelectedCar(null); setSidebarOpen(false); }}
+          className={`flex flex-col items-center gap-0.5 px-4 py-1 ${view === 'reservations' ? 'text-blue-600' : 'text-gray-400'}`}
+        >
+          <span className="text-lg">📅</span>
+          <span className="text-[10px] font-medium">Trips</span>
         </button>
         <button
           onClick={() => { setView('analytics'); setSidebarOpen(false); if (!analytics) fetch('/api/analytics').then(r => r.json()).then(setAnalytics); }}
