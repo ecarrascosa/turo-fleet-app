@@ -34,7 +34,7 @@ export default function FleetMap({ cars, rentedPlates, onCommand, selectedCarId,
     if (!mapRef.current || mapInstance.current) return;
 
     mapInstance.current = L.map(mapRef.current, {
-      center: [37.76, -122.44],
+      center: [37.6879, -122.4702],
       zoom: 12,
       zoomControl: true,
     });
