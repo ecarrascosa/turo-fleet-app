@@ -134,7 +134,7 @@ export default function FleetMap({ cars, rentedPlates, onCommand, selectedCarId,
 
     if (validCars.length > 0 && !selectedCarId) {
       const bounds = L.latLngBounds(validCars.map(c => [c.lat, c.lon]));
-      mapInstance.current.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 });
+      mapInstance.current.fitBounds(bounds, { padding: [30, 30], maxZoom: 16, minZoom: 12 });
     }
   }, [cars, rentedPlates, selectedCarId]);
 
