@@ -2,9 +2,62 @@ import fs from 'fs';
 import path from 'path';
 
 const BASE_URL = 'https://www.whatsgps.com/web/api';
-const TOKEN = process.env.WHATSGPS_TOKEN!;
 const ENT_ID = process.env.WHATSGPS_ENT_ID!;
 const CMD_PASSWORD = process.env.WHATSGPS_CMD_PASSWORD || '';
+const WHATSGPS_USER = process.env.WHATSGPS_USER || '';
+const WHATSGPS_PASS = process.env.WHATSGPS_PASS || '';
+
+// Token cache (in-memory, refreshed on expiry)
+let cachedToken = process.env.WHATSGPS_TOKEN || '';
+let tokenExpiry = 0; // unix ms
+
+function isTokenExpired(): boolean {
+  if (!cachedToken) return true;
+  // Decode JWT to check exp
+  try {
+    const payload = JSON.parse(Buffer.from(cachedToken.split('.')[1], 'base64').toString());
+    // Refresh 1 hour before actual expiry
+    return Date.now() >= (payload.exp * 1000) - 3600000;
+  } catch {
+    return true;
+  }
+}
+
+async function login(): Promise<string> {
+  if (!WHATSGPS_USER || !WHATSGPS_PASS) {
+    throw new Error('WHATSGPS_USER and WHATSGPS_PASS env vars required for auto-login');
+  }
+  const body = new URLSearchParams({
+    name: WHATSGPS_USER,
+    password: WHATSGPS_PASS,
+    timeZoneSecond: String(Math.round(new Date().getTimezoneOffset() / 60 * -1 * 3600)),
+    lang: 'en',
+  });
+  const res = await fetch(`${BASE_URL}/user-service/user/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'clientType': 'pc',
+      'appVersion': '1.0.0',
+      'Accept-Language': 'en',
+    },
+    body: body.toString(),
+  });
+  const data = await res.json();
+  if (data.ret !== 1 || !data.data?.token) {
+    throw new Error(`WhatsGPS login failed: ${data.msg || data.code || 'unknown error'}`);
+  }
+  cachedToken = data.data.token;
+  console.log('[WhatsGPS] Token refreshed successfully');
+  return cachedToken;
+}
+
+async function getToken(): Promise<string> {
+  if (isTokenExpired()) {
+    await login();
+  }
+  return cachedToken;
+}
 
 // Persistent lock/kill state tracking
 const STATE_FILE = path.join(process.cwd(), 'device-state.json');
@@ -42,10 +95,11 @@ export const COMMANDS = {
   ENGINE: { orderId: '7161621819198304256', cut: '1', restore: '0' },
 };
 
-async function api(path: string, body?: any, method = 'POST') {
+async function api(path: string, body?: any, method = 'POST', retry = true): Promise<any> {
+  const token = await getToken();
   const headers: Record<string, string> = {
     'Content-Type': typeof body === 'string' ? 'application/x-www-form-urlencoded' : 'application/json',
-    'Token': TOKEN,
+    'Token': token,
     'clientType': 'pc',
     'appVersion': '1.0.0',
     'Accept-Language': 'en',
@@ -55,7 +109,14 @@ async function api(path: string, body?: any, method = 'POST') {
     headers,
     body: typeof body === 'object' ? JSON.stringify(body) : body,
   });
-  return res.json();
+  const data = await res.json();
+  // Auto-retry on token expiry (code C05002 = token expired)
+  if (retry && (data.code === 'C05002' || data.msg?.includes('Token') || res.status === 401)) {
+    console.log('[WhatsGPS] Token expired, refreshing...');
+    cachedToken = ''; // force refresh
+    return api(path, body, method, false);
+  }
+  return data;
 }
 
 export interface Car {
