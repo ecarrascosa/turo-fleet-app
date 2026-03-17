@@ -27,7 +27,7 @@ export default function Home() {
   const [detailTab, setDetailTab] = useState<'info' | 'controls'>('info');
   const [search, setSearch] = useState('');
   const [analytics, setAnalytics] = useState<any>(null);
-  const [view, setView] = useState<'fleet' | 'map' | 'analytics'>('fleet');
+  const [view, setView] = useState<'fleet' | 'map' | 'analytics'>('map');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
