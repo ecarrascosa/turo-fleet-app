@@ -52,6 +52,8 @@ export async function GET(req: NextRequest) {
     reservations = getReservations();
   }
 
+  // Filter out cancelled reservations
+  reservations = reservations.filter(r => r.status !== 'cancelled');
   reservations.sort((a, b) => new Date(b.tripStart).getTime() - new Date(a.tripStart).getTime());
 
   return NextResponse.json({ reservations, count: reservations.length });
