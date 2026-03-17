@@ -178,7 +178,11 @@ export async function getFleet(): Promise<Car[]> {
       });
     }
   }
-  return cars.filter(c => c.active);
+  // Exclude sold vehicles that still have telematics devices
+  const EXCLUDED_CAR_IDS = new Set([
+    '1990960516796776464', // Toyota Corolla 2017 (8FMU623) — sold
+  ]);
+  return cars.filter(c => c.active && !EXCLUDED_CAR_IDS.has(c.carId));
 }
 
 export async function sendCommand(carId: string, orderId: string, onOff: string, password?: string) {
