@@ -4,14 +4,21 @@ import { fetchTuroEmails } from '@/lib/gmail';
 import { parseTuroEmail } from '@/lib/turo-emails';
 import { getFleet } from '@/lib/whatsgps';
 
-async function ensureSynced() {
-  const existing = getReservations();
-  if (existing.length > 0) return; // Already have data in memory
+let lastSyncTime = 0;
+const SYNC_COOLDOWN = 5 * 60 * 1000; // 5 minutes between syncs
 
-  // Auto-sync from Gmail on cold start
+async function ensureSynced() {
+  const now = Date.now();
+  const existing = getReservations();
+
+  // Skip if we synced recently (within cooldown)
+  if (existing.length > 0 && (now - lastSyncTime) < SYNC_COOLDOWN) return;
+
+  // Sync from Gmail — last 7 days for regular refreshes, 30 for cold start
   try {
-    const afterDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const emails = await fetchTuroEmails(50, afterDate);
+    const days = existing.length === 0 ? 30 : 7;
+    const afterDate = new Date(now - days * 24 * 60 * 60 * 1000).toISOString();
+    const emails = await fetchTuroEmails(existing.length === 0 ? 50 : 20, afterDate);
     let fleetCars: Array<{ carId: string; name: string }> = [];
     try {
       const fleet = await getFleet();
@@ -24,9 +31,10 @@ async function ensureSynced() {
         if (parsed) upsertFromEmail(parsed, fleetCars);
       } catch {}
     }
-    console.log(`[Reservations] Auto-synced from Gmail: ${emails.length} emails`);
+    lastSyncTime = now;
+    console.log(`[Reservations] Synced: ${emails.length} emails processed`);
   } catch (e) {
-    console.warn('[Reservations] Auto-sync failed:', e);
+    console.warn('[Reservations] Sync failed:', e);
   }
 }
 
