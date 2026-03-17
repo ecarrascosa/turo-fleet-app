@@ -131,7 +131,11 @@ export function upsertFromEmail(email: TuroEmail, fleetCars?: Array<{ carId: str
 
   if (email.type === 'message' && existing) {
     if (email.guestMessage) {
-      existing.messages.push({ text: email.guestMessage, timestamp: now });
+      // Deduplicate: only add if this exact message text doesn't already exist
+      const isDuplicate = existing.messages.some(m => m.text === email.guestMessage);
+      if (!isDuplicate) {
+        existing.messages.push({ text: email.guestMessage, timestamp: now });
+      }
     }
     existing.updatedAt = now;
     saveReservations(reservations);
