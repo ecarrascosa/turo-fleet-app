@@ -5,6 +5,9 @@ import { TuroEmail } from './turo-emails';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const RESERVATIONS_FILE = path.join(DATA_DIR, 'reservations.json');
 
+// In-memory cache for serverless environments (Vercel)
+let memoryCache: Reservation[] | null = null;
+
 export interface GuestMessage {
   text: string;
   timestamp: string;
@@ -29,21 +32,34 @@ export interface Reservation {
 }
 
 function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch { /* read-only filesystem on Vercel */ }
 }
 
 function loadReservations(): Reservation[] {
+  // Try memory cache first (serverless)
+  if (memoryCache !== null) return memoryCache;
+
   ensureDataDir();
   try {
-    return JSON.parse(fs.readFileSync(RESERVATIONS_FILE, 'utf-8'));
+    const data = JSON.parse(fs.readFileSync(RESERVATIONS_FILE, 'utf-8'));
+    memoryCache = data;
+    return data;
   } catch {
     return [];
   }
 }
 
 function saveReservations(reservations: Reservation[]) {
-  ensureDataDir();
-  fs.writeFileSync(RESERVATIONS_FILE, JSON.stringify(reservations, null, 2));
+  // Always update memory cache
+  memoryCache = reservations;
+
+  // Try filesystem (works locally, fails silently on Vercel)
+  try {
+    ensureDataDir();
+    fs.writeFileSync(RESERVATIONS_FILE, JSON.stringify(reservations, null, 2));
+  } catch { /* read-only on Vercel — that's fine, memory cache is primary */ }
 }
 
 export function getReservations(): Reservation[] {
