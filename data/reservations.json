@@ -1,1 +1,467 @@
-[]
+[
+  {
+    "reservationId": "55192526",
+    "guestName": "Alec",
+    "guestPhone": "(917) 287-0510",
+    "vehicleYear": "2013",
+    "vehicleModel": "Toyota Yaris",
+    "tripStart": "2026-03-17T01:00:00.000Z",
+    "tripEnd": "2026-03-17T14:00:00.000Z",
+    "earnings": 39.69,
+    "distanceIncluded": 200,
+    "status": "completed",
+    "messages": [
+      {
+        "text": "I believe I gave you 5 star rating did I not?",
+        "timestamp": "2026-03-17T22:32:28.608Z"
+      },
+      {
+        "text": "I’m sorry I couldn’t reply I was on a flight",
+        "timestamp": "2026-03-17T22:32:28.611Z"
+      },
+      {
+        "text": "My apologies I hope the car is ok",
+        "timestamp": "2026-03-17T22:32:28.612Z"
+      },
+      {
+        "text": "Hello the car is returned",
+        "timestamp": "2026-03-17T22:32:28.629Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.608Z",
+    "updatedAt": "2026-03-17T22:32:28.629Z"
+  },
+  {
+    "reservationId": "55225404",
+    "guestName": "Carlton",
+    "guestPhone": "(415) 793-2361",
+    "vehicleYear": "2016",
+    "vehicleModel": "Hyundai Elantra",
+    "tripStart": "2026-03-18T01:30:00.000Z",
+    "tripEnd": "2026-03-18T17:00:00.000Z",
+    "earnings": 34.54,
+    "distanceIncluded": 200,
+    "status": "booked",
+    "carId": "1990960516796776460",
+    "messages": [],
+    "createdAt": "2026-03-17T22:32:28.613Z",
+    "updatedAt": "2026-03-17T22:32:28.613Z"
+  },
+  {
+    "reservationId": "55199668",
+    "guestName": "Rachael",
+    "guestPhone": "(628) 726-2196",
+    "vehicleYear": "2025",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-03-21T17:00:00.000Z",
+    "tripEnd": "2026-03-22T02:00:00.000Z",
+    "earnings": 65.7,
+    "distanceIncluded": 200,
+    "status": "booked",
+    "messages": [
+      {
+        "text": "Thank you for the info Ed! If we need to end early - how far in advance does it need to be changed?",
+        "timestamp": "2026-03-17T22:32:28.614Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.614Z",
+    "updatedAt": "2026-03-17T22:32:28.614Z"
+  },
+  {
+    "reservationId": "55223308",
+    "guestName": "Isaac",
+    "guestPhone": "(805) 361-3962",
+    "vehicleYear": "2022",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-03-18T13:30:00.000Z",
+    "tripEnd": "2026-03-20T04:00:00.000Z",
+    "earnings": 103.5,
+    "distanceIncluded": 400,
+    "status": "booked",
+    "carId": "2862756",
+    "messages": [],
+    "createdAt": "2026-03-17T22:32:28.614Z",
+    "updatedAt": "2026-03-17T22:32:28.614Z"
+  },
+  {
+    "reservationId": "55223060",
+    "guestName": "Isaac",
+    "vehicleYear": "2025",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-03-25T13:30:00.000Z",
+    "tripEnd": "2026-03-27T04:00:00.000Z",
+    "status": "booked",
+    "messages": [],
+    "createdAt": "2026-03-17T22:32:28.615Z",
+    "updatedAt": "2026-03-17T22:32:28.615Z",
+    "earnings": 85.05,
+    "guestPhone": "(805) 361-3962",
+    "distanceIncluded": 400
+  },
+  {
+    "reservationId": "55223011",
+    "guestName": "Isaac",
+    "guestPhone": "(606) 226-9481",
+    "vehicleYear": "2015",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-03-30T14:30:00.000Z",
+    "tripEnd": "2026-03-31T02:30:00.000Z",
+    "earnings": 41.4,
+    "distanceIncluded": 200,
+    "status": "booked",
+    "carId": "2862696",
+    "messages": [],
+    "createdAt": "2026-03-17T22:32:28.616Z",
+    "updatedAt": "2026-03-17T22:32:28.616Z"
+  },
+  {
+    "reservationId": "55161238",
+    "guestName": "cassie",
+    "guestPhone": "(678) 492-2254",
+    "vehicleYear": "",
+    "vehicleModel": "",
+    "tripStart": "2026-03-16T02:00:00.000Z",
+    "tripEnd": "2026-03-18T02:00:00.000Z",
+    "earnings": 116.71,
+    "distanceIncluded": 400,
+    "status": "active",
+    "carId": "1990960516796776465",
+    "messages": [
+      {
+        "text": "OK, awesome! Thanks so much!",
+        "timestamp": "2026-03-17T22:32:28.617Z"
+      },
+      {
+        "text": "Im running a few minutes late today. Says I will be there at 435. Is that ok?! Sorry for inconvenience!",
+        "timestamp": "2026-03-17T22:32:28.618Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.617Z",
+    "updatedAt": "2026-03-17T22:32:28.618Z"
+  },
+  {
+    "reservationId": "55114031",
+    "guestName": "Jacob",
+    "guestPhone": "(661) 490-2120",
+    "vehicleYear": "2013",
+    "vehicleModel": "Toyota Yaris",
+    "tripStart": "2026-03-18T16:00:00.000Z",
+    "tripEnd": "2026-03-23T04:00:00.000Z",
+    "earnings": 165.24,
+    "status": "booked",
+    "messages": [
+      {
+        "text": "Thanks!!! Having a little trouble logging into my turo account so any issues just text me +1 (661) 490-2120",
+        "timestamp": "2026-03-17T22:32:28.617Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.617Z",
+    "updatedAt": "2026-03-17T22:32:28.617Z"
+  },
+  {
+    "reservationId": "54925285",
+    "guestName": "Ione",
+    "guestPhone": "(973) 337-9139",
+    "vehicleYear": "2016",
+    "vehicleModel": "Jeep Cherokee",
+    "tripStart": "2026-03-15T15:00:00.000Z",
+    "tripEnd": "2026-03-18T04:00:00.000Z",
+    "earnings": 119.52,
+    "distanceIncluded": 600,
+    "status": "active",
+    "carId": "2848014",
+    "messages": [],
+    "createdAt": "2026-03-17T22:32:28.619Z",
+    "updatedAt": "2026-03-17T22:32:28.619Z"
+  },
+  {
+    "reservationId": "55217054",
+    "guestName": "Aimee",
+    "guestPhone": "(415) 722-1160",
+    "vehicleYear": "2025",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-03-17T19:30:00.000Z",
+    "tripEnd": "2026-03-18T19:30:00.000Z",
+    "earnings": 51.98,
+    "distanceIncluded": 200,
+    "status": "active",
+    "messages": [
+      {
+        "text": "hi is there another way to reach you the car is locked my cell phone is 415-722-1160 thank you!",
+        "timestamp": "2026-03-17T22:32:28.619Z"
+      },
+      {
+        "text": "Hi, the car is locked \nmay i pick up keys from you? thank you",
+        "timestamp": "2026-03-17T22:32:28.620Z"
+      },
+      {
+        "text": "Hi Eduardo, \nthank you for the information!\nhave a great day,\nAimee",
+        "timestamp": "2026-03-17T22:32:28.620Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.619Z",
+    "updatedAt": "2026-03-17T22:32:28.621Z"
+  },
+  {
+    "reservationId": "55215433",
+    "guestName": "Will",
+    "guestPhone": "(239) 216-7441",
+    "vehicleYear": "2025",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-03-18T14:30:00.000Z",
+    "tripEnd": "2026-03-19T05:00:00.000Z",
+    "earnings": 43.2,
+    "distanceIncluded": 200,
+    "status": "booked",
+    "messages": [],
+    "createdAt": "2026-03-17T22:32:28.622Z",
+    "updatedAt": "2026-03-17T22:32:28.622Z"
+  },
+  {
+    "reservationId": "55210932",
+    "guestName": "Charlie",
+    "guestPhone": "(647) 233-8231",
+    "vehicleYear": "2025",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-03-19T17:30:00.000Z",
+    "tripEnd": "2026-03-20T00:30:00.000Z",
+    "earnings": 52.2,
+    "distanceIncluded": 200,
+    "status": "booked",
+    "messages": [
+      {
+        "text": "Thanks!",
+        "timestamp": "2026-03-17T22:32:28.622Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.622Z",
+    "updatedAt": "2026-03-17T22:32:28.627Z"
+  },
+  {
+    "reservationId": "55214526",
+    "guestName": "Morgan",
+    "guestPhone": "(520) 784-3447",
+    "vehicleYear": "",
+    "vehicleModel": "",
+    "tripStart": "2026-03-30T13:30:00.000Z",
+    "tripEnd": "2026-03-30T22:30:00.000Z",
+    "earnings": 47.7,
+    "distanceIncluded": 200,
+    "status": "booked",
+    "carId": "1990960516796776465",
+    "messages": [],
+    "createdAt": "2026-03-17T22:32:28.622Z",
+    "updatedAt": "2026-03-17T22:32:28.622Z"
+  },
+  {
+    "reservationId": "55210713",
+    "guestName": "Anna",
+    "guestPhone": "(415) 254-5948",
+    "vehicleYear": "2013",
+    "vehicleModel": "Volkswagen Jetta",
+    "tripStart": "2026-03-17T17:00:00.000Z",
+    "tripEnd": "2026-03-18T17:00:00.000Z",
+    "earnings": 42.52,
+    "distanceIncluded": 200,
+    "status": "active",
+    "carId": "2848037",
+    "messages": [
+      {
+        "text": "Thank you!!!",
+        "timestamp": "2026-03-17T22:32:28.623Z"
+      },
+      {
+        "text": "All good to go?",
+        "timestamp": "2026-03-17T22:32:28.623Z"
+      },
+      {
+        "text": "Did you get my photos?",
+        "timestamp": "2026-03-17T22:32:28.623Z"
+      },
+      {
+        "text": "I’m here and not sure where the car is",
+        "timestamp": "2026-03-17T22:32:28.624Z"
+      },
+      {
+        "text": "Thank you! Headed there soon. Any chance I can pick it up a little early?  If it's locked I message you right?",
+        "timestamp": "2026-03-17T22:32:28.627Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.623Z",
+    "updatedAt": "2026-03-17T22:32:28.627Z"
+  },
+  {
+    "reservationId": "55203179",
+    "guestName": "Alex",
+    "guestPhone": "(415) 369-7158",
+    "vehicleYear": "2016",
+    "vehicleModel": "Jeep Wrangler Unlimited",
+    "tripStart": "2026-03-19T20:00:00.000Z",
+    "tripEnd": "2026-03-23T20:00:00.000Z",
+    "earnings": 267.3,
+    "distanceIncluded": 800,
+    "status": "booked",
+    "carId": "2862747",
+    "messages": [
+      {
+        "text": "Thank you! Looking forward to driving your car!",
+        "timestamp": "2026-03-17T22:32:28.624Z"
+      },
+      {
+        "text": "Hi Ed,\nBased on previous reviews, I want to confirm if fuel gauge is fixed now?",
+        "timestamp": "2026-03-17T22:32:28.630Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.624Z",
+    "updatedAt": "2026-03-17T22:32:28.630Z"
+  },
+  {
+    "reservationId": "54957589",
+    "guestName": "Joseph",
+    "guestPhone": "(480) 721-6028",
+    "vehicleYear": "2022",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-03-17T16:30:00.000Z",
+    "tripEnd": "2026-03-18T04:30:00.000Z",
+    "earnings": 39.69,
+    "distanceIncluded": 200,
+    "status": "active",
+    "carId": "2862756",
+    "messages": [
+      {
+        "text": "Hi sorry, we are waiting for the bus it’s been delayed, we’ll be there around 10 if that’s okay",
+        "timestamp": "2026-03-17T22:32:28.625Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.625Z",
+    "updatedAt": "2026-03-17T22:32:28.625Z"
+  },
+  {
+    "reservationId": "55212607",
+    "guestName": "Phillip",
+    "guestPhone": "(832) 382-2305",
+    "vehicleYear": "2019",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-03-18T15:30:00.000Z",
+    "tripEnd": "2026-03-23T20:00:00.000Z",
+    "earnings": 266.49,
+    "status": "booked",
+    "messages": [],
+    "createdAt": "2026-03-17T22:32:28.625Z",
+    "updatedAt": "2026-03-17T22:32:28.625Z"
+  },
+  {
+    "reservationId": "55174183",
+    "guestName": "Dory",
+    "guestPhone": "(508) 932-0600",
+    "vehicleYear": "2017",
+    "vehicleModel": "Hyundai Veloster",
+    "tripStart": "2026-03-17T14:30:00.000Z",
+    "tripEnd": "2026-03-19T02:00:00.000Z",
+    "earnings": 78.3,
+    "distanceIncluded": 400,
+    "status": "active",
+    "carId": "1990960516796776459",
+    "messages": [
+      {
+        "text": "Yup! Thanks",
+        "timestamp": "2026-03-17T22:32:28.628Z"
+      },
+      {
+        "text": "Hi there I am at the car if you could please unlock it — thanks!",
+        "timestamp": "2026-03-17T22:32:28.628Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.628Z",
+    "updatedAt": "2026-03-17T22:32:28.628Z"
+  },
+  {
+    "reservationId": "55144121",
+    "guestName": "Kirsten",
+    "guestPhone": "(561) 758-4273",
+    "vehicleYear": "2025",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-03-17T15:00:00.000Z",
+    "tripEnd": "2026-03-18T02:30:00.000Z",
+    "earnings": 43.2,
+    "distanceIncluded": 200,
+    "status": "active",
+    "messages": [
+      {
+        "text": "Thanks! We are grabbing coffee and will then pick up",
+        "timestamp": "2026-03-17T22:32:28.628Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.628Z",
+    "updatedAt": "2026-03-17T22:32:28.628Z"
+  },
+  {
+    "reservationId": "55119110",
+    "guestName": "Hery",
+    "guestPhone": "(860) 539-0158",
+    "vehicleYear": "2017",
+    "vehicleModel": "Hyundai Veloster",
+    "tripStart": "2026-03-14T23:30:00.000Z",
+    "tripEnd": "2026-03-17T03:30:00.000Z",
+    "earnings": 144.59,
+    "distanceIncluded": 600,
+    "status": "completed",
+    "carId": "1990960516796776459",
+    "messages": [
+      {
+        "text": "Hi,",
+        "timestamp": "2026-03-17T22:32:28.630Z"
+      },
+      {
+        "text": "Hi, the app says I haven’t checked out but I’m certain I did. Does it say anything on your end?",
+        "timestamp": "2026-03-17T22:32:28.632Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.630Z",
+    "updatedAt": "2026-03-17T22:32:28.632Z"
+  },
+  {
+    "reservationId": "55109885",
+    "guestName": "Veronica",
+    "guestPhone": "(650) 880-5566",
+    "vehicleYear": "2025",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-03-15T15:30:00.000Z",
+    "tripEnd": "2026-03-17T05:00:00.000Z",
+    "earnings": 116.1,
+    "distanceIncluded": 400,
+    "status": "completed",
+    "messages": [
+      {
+        "text": "No",
+        "timestamp": "2026-03-17T22:32:28.631Z"
+      },
+      {
+        "text": "Thank you very much! It was great",
+        "timestamp": "2026-03-17T22:32:28.632Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.631Z",
+    "updatedAt": "2026-03-17T22:32:28.632Z"
+  },
+  {
+    "reservationId": "55166332",
+    "guestName": "Vibhor",
+    "guestPhone": "(646) 881-6945",
+    "vehicleYear": "2025",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-03-16T17:00:00.000Z",
+    "tripEnd": "2026-03-17T06:00:00.000Z",
+    "earnings": 43.2,
+    "distanceIncluded": 200,
+    "status": "completed",
+    "messages": [
+      {
+        "text": "ok thanks!",
+        "timestamp": "2026-03-17T22:32:28.631Z"
+      }
+    ],
+    "createdAt": "2026-03-17T22:32:28.631Z",
+    "updatedAt": "2026-03-17T22:32:28.631Z"
+  }
+]
