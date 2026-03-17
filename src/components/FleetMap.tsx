@@ -133,8 +133,11 @@ export default function FleetMap({ cars, rentedPlates, onCommand, selectedCarId,
     }
 
     if (validCars.length > 0 && !selectedCarId) {
-      const bounds = L.latLngBounds(validCars.map(c => [c.lat, c.lon]));
-      mapInstance.current.fitBounds(bounds, { padding: [30, 30], maxZoom: 16, minZoom: 12 });
+      // Only include cars near SF for auto-fit (exclude outliers that zoom out too far)
+      const sfCars = validCars.filter(c => c.lat > 37.5 && c.lat < 38.0 && c.lon > -122.6 && c.lon < -122.2);
+      const carsForBounds = sfCars.length > 0 ? sfCars : validCars;
+      const bounds = L.latLngBounds(carsForBounds.map(c => [c.lat, c.lon] as [number, number]));
+      mapInstance.current.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 });
     }
   }, [cars, rentedPlates, selectedCarId]);
 
