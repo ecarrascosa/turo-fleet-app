@@ -175,7 +175,7 @@ export async function getFleet(): Promise<Car[]> {
 
 export async function sendCommand(carId: string, orderId: string, onOff: string, password?: string) {
   const parameterMap: Record<string, string> = { orderId, on_off: onOff };
-  if (password) parameterMap.password = password;
+  if (password) parameterMap.passwd = password;
   const data = await api('/device-service/remoteControl/sendOrder', {
     carId,
     orderId,
