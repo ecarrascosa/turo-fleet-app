@@ -1,6 +1,3 @@
-import fs from 'fs';
-import path from 'path';
-
 const BASE_URL = 'https://www.whatsgps.com/web/api';
 const ENT_ID = process.env.WHATSGPS_ENT_ID!;
 const CMD_PASSWORD = process.env.WHATSGPS_CMD_PASSWORD || '';
@@ -59,34 +56,25 @@ async function getToken(): Promise<string> {
   return cachedToken;
 }
 
-// Persistent lock/kill state tracking
-const STATE_FILE = path.join(process.cwd(), 'device-state.json');
-
+// In-memory state (best-effort, resets on cold start)
+// TODO: replace with Upstash Redis or Vercel KV for persistence
 interface DeviceState {
   [carId: string]: { locked: boolean; engineCut: boolean; updatedAt: string };
 }
 
-function loadState(): DeviceState {
-  try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8')); } catch { return {}; }
-}
-
-function saveState(state: DeviceState) {
-  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
-}
+const memoryState: DeviceState = {};
 
 export function setDeviceState(carId: string, locked?: boolean, engineCut?: boolean) {
-  const state = loadState();
-  const prev = state[carId] || { locked: false, engineCut: false, updatedAt: '' };
-  state[carId] = {
+  const prev = memoryState[carId] || { locked: false, engineCut: false, updatedAt: '' };
+  memoryState[carId] = {
     locked: locked !== undefined ? locked : prev.locked,
     engineCut: engineCut !== undefined ? engineCut : prev.engineCut,
     updatedAt: new Date().toISOString(),
   };
-  saveState(state);
 }
 
 export function getDeviceStates(): DeviceState {
-  return loadState();
+  return memoryState;
 }
 
 // Command Order IDs (global for G21L devices)
