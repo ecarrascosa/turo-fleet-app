@@ -165,6 +165,10 @@ export default function Home() {
             onClick={() => { setView('analytics'); if (!analytics) fetch('/api/analytics').then(r => r.json()).then(setAnalytics); }}
             className={`hidden lg:block px-3 py-1 text-sm rounded ${view === 'analytics' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
           >📊 Analytics</button>
+          <a
+            href="/service"
+            className="hidden lg:block px-3 py-1 text-sm rounded hover:bg-slate-700"
+          >🔧 Service</a>
           {/* Lock All - always visible */}
           <button
             onClick={() => sendCommand('lock-all')}
@@ -601,6 +605,13 @@ export default function Home() {
           <span className="text-lg">📊</span>
           <span className="text-[10px] font-medium">Analytics</span>
         </button>
+        <a
+          href="/service"
+          className="flex flex-col items-center gap-0.5 px-4 py-1 text-gray-400"
+        >
+          <span className="text-lg">🔧</span>
+          <span className="text-[10px] font-medium">Service</span>
+        </a>
       </nav>
 
       {/* Desktop nav buttons in header - hidden on mobile (using bottom nav instead) */}
