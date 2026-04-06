@@ -485,14 +485,19 @@
     "guestPhone": "(415) 530-7732",
     "vehicleYear": "2023",
     "vehicleModel": "Kia Forte",
-    "tripStart": "",
-    "tripEnd": "",
+    "tripStart": "2026-04-04T02:00:00.000Z",
+    "tripEnd": "2026-04-07T04:00:00.000Z",
     "distanceIncluded": 800,
-    "status": "booked",
+    "status": "active",
     "carId": "2862776",
-    "messages": [],
+    "messages": [
+      {
+        "text": "Hey Ed, we are planning to return later than originally expected. Let me know if this causes any issues",
+        "timestamp": "2026-04-06T22:54:11.211Z"
+      }
+    ],
     "createdAt": "2026-04-01T05:05:51.535Z",
-    "updatedAt": "2026-04-01T05:05:51.535Z"
+    "updatedAt": "2026-04-06T22:54:11.212Z"
   },
   {
     "reservationId": "55708135",
@@ -664,7 +669,7 @@
       }
     ],
     "createdAt": "2026-04-06T22:12:36.573Z",
-    "updatedAt": "2026-04-06T22:44:16.221Z"
+    "updatedAt": "2026-04-06T22:54:11.216Z"
   },
   {
     "reservationId": "55902328",
@@ -672,14 +677,14 @@
     "guestPhone": "(862) 370-1911",
     "vehicleYear": "2026",
     "vehicleModel": "Toyota Corolla Cross",
-    "tripStart": "",
-    "tripEnd": "",
+    "tripStart": "2026-04-07T14:00:00.000Z",
+    "tripEnd": "2026-04-08T02:00:00.000Z",
     "distanceIncluded": 200,
     "status": "booked",
     "carId": "1990960516796776461",
     "messages": [],
     "createdAt": "2026-04-06T22:12:36.575Z",
-    "updatedAt": "2026-04-06T22:44:16.222Z"
+    "updatedAt": "2026-04-06T22:54:11.217Z"
   },
   {
     "reservationId": "55886761",
@@ -703,7 +708,7 @@
       }
     ],
     "createdAt": "2026-04-06T22:12:36.576Z",
-    "updatedAt": "2026-04-06T22:44:16.224Z"
+    "updatedAt": "2026-04-06T22:54:11.219Z"
   },
   {
     "reservationId": "52295258",
@@ -723,7 +728,7 @@
       }
     ],
     "createdAt": "2026-04-06T22:12:36.577Z",
-    "updatedAt": "2026-04-06T22:44:16.225Z"
+    "updatedAt": "2026-04-06T22:54:11.219Z"
   },
   {
     "reservationId": "55899027",
@@ -731,14 +736,14 @@
     "guestPhone": "(510) 604-8458",
     "vehicleYear": "",
     "vehicleModel": "",
-    "tripStart": "",
-    "tripEnd": "",
+    "tripStart": "2026-04-07T13:30:00.000Z",
+    "tripEnd": "2026-04-10T13:30:00.000Z",
     "distanceIncluded": 600,
     "status": "booked",
-    "carId": "1990960516796776459",
+    "carId": "1990960516796776469",
     "messages": [],
     "createdAt": "2026-04-06T22:12:36.579Z",
-    "updatedAt": "2026-04-06T22:44:16.226Z"
+    "updatedAt": "2026-04-06T22:54:11.220Z"
   },
   {
     "reservationId": "55646932",
@@ -753,10 +758,18 @@
       {
         "text": "Everything is ok with the car\nCould you please do the driver licence vérification",
         "timestamp": "2026-04-06T22:12:36.579Z"
+      },
+      {
+        "text": "Please could you open iy",
+        "timestamp": "2026-04-06T22:48:03.634Z"
+      },
+      {
+        "text": "We are at the car",
+        "timestamp": "2026-04-06T22:48:03.634Z"
       }
     ],
     "createdAt": "2026-04-06T22:12:36.579Z",
-    "updatedAt": "2026-04-06T22:44:16.226Z"
+    "updatedAt": "2026-04-06T22:54:11.220Z"
   },
   {
     "reservationId": "55898838",
@@ -764,14 +777,14 @@
     "guestPhone": "(540) 451-3361",
     "vehicleYear": "",
     "vehicleModel": "",
-    "tripStart": "",
-    "tripEnd": "",
+    "tripStart": "2026-04-07T15:30:00.000Z",
+    "tripEnd": "2026-04-08T15:30:00.000Z",
     "distanceIncluded": 200,
     "status": "booked",
-    "carId": "1990960516796776459",
+    "carId": "1990960516796776469",
     "messages": [],
     "createdAt": "2026-04-06T22:12:36.580Z",
-    "updatedAt": "2026-04-06T22:44:16.227Z"
+    "updatedAt": "2026-04-06T22:54:11.220Z"
   },
   {
     "reservationId": "55896456",
@@ -779,14 +792,14 @@
     "guestPhone": "(510) 682-4832",
     "vehicleYear": "",
     "vehicleModel": "",
-    "tripStart": "",
-    "tripEnd": "",
+    "tripStart": "2026-04-06T21:00:00.000Z",
+    "tripEnd": "2026-04-09T21:00:00.000Z",
     "distanceIncluded": 600,
-    "status": "booked",
-    "carId": "1990960516796776459",
+    "status": "active",
+    "carId": "1990960516796776469",
     "messages": [],
     "createdAt": "2026-04-06T22:12:36.581Z",
-    "updatedAt": "2026-04-06T22:44:16.228Z"
+    "updatedAt": "2026-04-06T22:54:11.220Z"
   },
   {
     "reservationId": "55863016",
@@ -811,10 +824,18 @@
       {
         "text": "Parked it here",
         "timestamp": "2026-04-06T22:12:36.583Z"
+      },
+      {
+        "text": "I called AAA but they are over an hour away",
+        "timestamp": "2026-04-06T22:48:03.630Z"
+      },
+      {
+        "text": "Hi Ed - the battery has died :( i didn’t leave the lights on so not sure root cause.\n\nI was driving it back to Sacramento st now - I’m  currently parked on Seymour.",
+        "timestamp": "2026-04-06T22:48:03.630Z"
       }
     ],
     "createdAt": "2026-04-06T22:12:36.582Z",
-    "updatedAt": "2026-04-06T22:44:16.230Z"
+    "updatedAt": "2026-04-06T22:54:11.222Z"
   },
   {
     "reservationId": "55894557",
@@ -822,14 +843,14 @@
     "guestPhone": "(838) 900-1013",
     "vehicleYear": "2013",
     "vehicleModel": "Hyundai Elantra",
-    "tripStart": "",
-    "tripEnd": "",
+    "tripStart": "2026-04-06T19:30:00.000Z",
+    "tripEnd": "2026-04-10T19:30:00.000Z",
     "distanceIncluded": 800,
     "status": "cancelled",
     "carId": "1990960516796776462",
     "messages": [],
     "createdAt": "2026-04-06T22:12:36.583Z",
-    "updatedAt": "2026-04-06T22:28:12.696Z"
+    "updatedAt": "2026-04-06T22:54:11.221Z"
   },
   {
     "reservationId": "55893802",
@@ -837,13 +858,13 @@
     "guestPhone": "(818) 624-3848",
     "vehicleYear": "2013",
     "vehicleModel": "Hyundai Elantra",
-    "tripStart": "",
-    "tripEnd": "",
+    "tripStart": "2026-04-17T18:00:00.000Z",
+    "tripEnd": "2026-04-28T05:00:00.000Z",
     "status": "booked",
     "carId": "1990960516796776462",
     "messages": [],
     "createdAt": "2026-04-06T22:12:36.584Z",
-    "updatedAt": "2026-04-06T22:12:36.584Z"
+    "updatedAt": "2026-04-06T22:54:11.221Z"
   },
   {
     "reservationId": "55685005",
@@ -866,7 +887,7 @@
       }
     ],
     "createdAt": "2026-04-06T22:28:12.683Z",
-    "updatedAt": "2026-04-06T22:44:16.220Z"
+    "updatedAt": "2026-04-06T22:54:11.215Z"
   },
   {
     "reservationId": "55839981",
@@ -883,9 +904,140 @@
       {
         "text": "Hello! I wanted to book the car for one more day. would that be possible?",
         "timestamp": "2026-04-06T22:44:16.215Z"
+      },
+      {
+        "text": "I want to do same ending time but for tomorrow",
+        "timestamp": "2026-04-06T22:54:11.206Z"
+      },
+      {
+        "text": "I tried to but it wouldnt let me",
+        "timestamp": "2026-04-06T22:54:11.210Z"
       }
     ],
     "createdAt": "2026-04-06T22:44:16.215Z",
-    "updatedAt": "2026-04-06T22:44:16.215Z"
+    "updatedAt": "2026-04-06T22:54:11.214Z"
+  },
+  {
+    "reservationId": "55893790",
+    "guestName": "Robert",
+    "guestPhone": "(415) 515-0619",
+    "vehicleYear": "2016",
+    "vehicleModel": "Volkswagen Jetta",
+    "tripStart": "2026-04-10T00:00:00.000Z",
+    "tripEnd": "2026-04-11T23:00:00.000Z",
+    "distanceIncluded": 400,
+    "status": "booked",
+    "carId": "2862726",
+    "messages": [],
+    "createdAt": "2026-04-06T22:48:03.630Z",
+    "updatedAt": "2026-04-06T22:54:11.221Z"
+  },
+  {
+    "reservationId": "55892882",
+    "guestName": "Jenny",
+    "guestPhone": "(360) 292-0699",
+    "vehicleYear": "2025",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-04-29T02:30:00.000Z",
+    "tripEnd": "2026-04-30T02:30:00.000Z",
+    "distanceIncluded": 200,
+    "status": "booked",
+    "messages": [],
+    "createdAt": "2026-04-06T22:48:03.630Z",
+    "updatedAt": "2026-04-06T22:54:11.222Z"
+  },
+  {
+    "reservationId": "55309881",
+    "guestName": "tammy",
+    "guestPhone": "(510) 696-3831",
+    "vehicleYear": "",
+    "vehicleModel": "",
+    "tripStart": "2026-04-03T17:00:00.000Z",
+    "tripEnd": "2026-04-06T17:00:00.000Z",
+    "distanceIncluded": 600,
+    "status": "completed",
+    "carId": "1990960516796776469",
+    "messages": [
+      {
+        "text": "Yes. Of course",
+        "timestamp": "2026-04-06T22:48:03.631Z"
+      },
+      {
+        "text": "Yes",
+        "timestamp": "2026-04-06T22:48:03.633Z"
+      },
+      {
+        "text": "Good morning, \nHope your having a blessed Monday. Thank you for the beautiful ride for last weekend. I parked the car at 2614 Sacramento. There was no parking closer than that. \nThank you again",
+        "timestamp": "2026-04-06T22:48:03.634Z"
+      }
+    ],
+    "createdAt": "2026-04-06T22:48:03.631Z",
+    "updatedAt": "2026-04-06T22:54:11.225Z"
+  },
+  {
+    "reservationId": "55739680",
+    "guestName": "Breanna",
+    "guestPhone": "(628) 303-6339",
+    "vehicleYear": "2025",
+    "vehicleModel": "Toyota Corolla",
+    "tripStart": "2026-04-02T01:00:00.000Z",
+    "tripEnd": "2026-04-06T17:30:00.000Z",
+    "status": "completed",
+    "messages": [
+      {
+        "text": "Thank u have a blessed day",
+        "timestamp": "2026-04-06T22:48:03.631Z"
+      },
+      {
+        "text": "Can u except my time so I can leave in sign out ur car",
+        "timestamp": "2026-04-06T22:48:03.631Z"
+      },
+      {
+        "text": "Ur key is in same spot",
+        "timestamp": "2026-04-06T22:48:03.631Z"
+      },
+      {
+        "text": "Im going to lock it",
+        "timestamp": "2026-04-06T22:48:03.631Z"
+      },
+      {
+        "text": "Ok",
+        "timestamp": "2026-04-06T22:48:03.632Z"
+      },
+      {
+        "text": "Can",
+        "timestamp": "2026-04-06T22:48:03.632Z"
+      },
+      {
+        "text": "I’m trying to close my account",
+        "timestamp": "2026-04-06T22:48:03.632Z"
+      },
+      {
+        "text": "I found parking around the corner from your house of the drop off spot at 2119 Sacramento in Pierce. It’s around the corner from your house, but that’s the only place I can find some good parking.",
+        "timestamp": "2026-04-06T22:48:03.633Z"
+      },
+      {
+        "text": "I’m by park",
+        "timestamp": "2026-04-06T22:48:03.633Z"
+      },
+      {
+        "text": "So 2707 Sacramento",
+        "timestamp": "2026-04-06T22:48:03.633Z"
+      },
+      {
+        "text": "I’m were I picked car up at no space",
+        "timestamp": "2026-04-06T22:48:03.633Z"
+      },
+      {
+        "text": "I’m here we’re do I park",
+        "timestamp": "2026-04-06T22:48:03.633Z"
+      },
+      {
+        "text": "I will be there 10:05",
+        "timestamp": "2026-04-06T22:48:03.634Z"
+      }
+    ],
+    "createdAt": "2026-04-06T22:48:03.631Z",
+    "updatedAt": "2026-04-06T22:54:11.226Z"
   }
 ]

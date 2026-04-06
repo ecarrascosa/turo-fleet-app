@@ -55,21 +55,40 @@ export interface GmailMessage {
  * @param afterDate Only fetch emails after this date (ISO string)
  */
 export async function fetchTuroEmails(maxResults = 20, afterDate?: string): Promise<GmailMessage[]> {
-  let query = 'from:noreply@mail.turo.com';
-  if (afterDate) {
+  const dateFilter = afterDate ? (() => {
     const d = new Date(afterDate);
-    const dateStr = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-    query += ` after:${dateStr}`;
+    return ` after:${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+  })() : '';
+
+  // Fetch booking/modification emails first (they have the dates), then messages
+  const queries = [
+    `from:noreply@mail.turo.com subject:"is booked"${dateFilter}`,
+    `from:noreply@mail.turo.com subject:"has changed"${dateFilter}`,
+    `from:noreply@mail.turo.com subject:"has cancelled"${dateFilter}`,
+    `from:noreply@mail.turo.com subject:"has sent you a message"${dateFilter}`,
+  ];
+
+  const allMessages: Array<{ id: string }> = [];
+  const seenIds = new Set<string>();
+
+  for (const query of queries) {
+    const listRes = await gmailApi(
+      `messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`
+    );
+    if (listRes.messages) {
+      for (const msg of listRes.messages) {
+        if (!seenIds.has(msg.id)) {
+          seenIds.add(msg.id);
+          allMessages.push(msg);
+        }
+      }
+    }
   }
 
-  const listRes = await gmailApi(
-    `messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`
-  );
-
-  if (!listRes.messages || listRes.messages.length === 0) return [];
+  if (allMessages.length === 0) return [];
 
   const messages: GmailMessage[] = [];
-  for (const msg of listRes.messages) {
+  for (const msg of allMessages) {
     const detail = await gmailApi(`messages/${msg.id}?format=full`);
     const headers = detail.payload?.headers || [];
     const subject = headers.find((h: any) => h.name === 'Subject')?.value || '';

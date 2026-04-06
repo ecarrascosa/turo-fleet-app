@@ -434,13 +434,30 @@ export default function Home() {
               : reservations.filter(r => r.status === 'completed');
 
             const events: TripEvent[] = [];
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             filteredRes.forEach(res => {
               const car = cars.find(c => c.carId === res.carId);
-              if (res.tripStart) {
-                events.push({ type: 'start', time: new Date(res.tripStart), reservation: res, car });
-              }
-              if (res.tripEnd) {
-                events.push({ type: 'end', time: new Date(res.tripEnd), reservation: res, car });
+              const start = res.tripStart ? new Date(res.tripStart) : null;
+              const end = res.tripEnd ? new Date(res.tripEnd) : null;
+
+              if (tripsTab === 'booked') {
+                // For booked: skip past start events, but show "In progress" as today event
+                if (start && start >= todayStart) {
+                  events.push({ type: 'start', time: start, reservation: res, car });
+                } else if (start && end && start < todayStart && end >= todayStart) {
+                  // Trip already started — show as "in progress" at start of today
+                  events.push({ type: 'start', time: todayStart, reservation: res, car });
+                }
+                if (end) {
+                  events.push({ type: 'end', time: end, reservation: res, car });
+                }
+              } else {
+                // History: just use end date for each reservation
+                if (end) {
+                  events.push({ type: 'end', time: end, reservation: res, car });
+                } else if (start) {
+                  events.push({ type: 'start', time: start, reservation: res, car });
+                }
               }
             });
 
@@ -451,19 +468,41 @@ export default function Home() {
               events.sort((a, b) => b.time.getTime() - a.time.getTime());
             }
 
-            // Group by day
+            // Group events
             const grouped: { label: string; key: string; events: TripEvent[] }[] = [];
-            const dayMap = new Map<string, TripEvent[]>();
-            const dayOrder: string[] = [];
-            events.forEach(ev => {
-              const key = getDayKey(ev.time);
-              if (!dayMap.has(key)) { dayMap.set(key, []); dayOrder.push(key); }
-              dayMap.get(key)!.push(ev);
-            });
-            dayOrder.forEach(key => {
-              const evs = dayMap.get(key)!;
-              grouped.push({ label: getDayLabel(evs[0].time), key, events: evs });
-            });
+            if (tripsTab === 'history') {
+              // History: group by month, show each reservation once (use end date), reverse chronological
+              const seen = new Set<string>();
+              const monthMap = new Map<string, TripEvent[]>();
+              const monthOrder: string[] = [];
+              events.forEach(ev => {
+                if (seen.has(ev.reservation.reservationId)) return;
+                seen.add(ev.reservation.reservationId);
+                const d = ev.time;
+                const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                if (!monthMap.has(key)) { monthMap.set(key, []); monthOrder.push(key); }
+                monthMap.get(key)!.push(ev);
+              });
+              monthOrder.forEach(key => {
+                const evs = monthMap.get(key)!;
+                const label = evs[0].time.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                grouped.push({ label, key, events: evs });
+              });
+            } else {
+              // Booked: group by day with start+end events
+              const dayMap = new Map<string, TripEvent[]>();
+              const dayOrder: string[] = [];
+              events.forEach(ev => {
+                const key = getDayKey(ev.time);
+                if (!dayMap.has(key)) { dayMap.set(key, []); dayOrder.push(key); }
+                dayMap.get(key)!.push(ev);
+              });
+              dayOrder.forEach(key => {
+                const evs = dayMap.get(key)!;
+                grouped.push({ label: getDayLabel(evs[0].time), key, events: evs });
+              });
+            }
 
             // Determine status badge for an event
             const getStatusBadge = (ev: TripEvent) => {
