@@ -422,10 +422,15 @@ export default function Home() {
                         cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Cancelled' },
                       };
                       const sc = statusConfig[res.status] || statusConfig.booked;
-                      const start = new Date(res.tripStart);
-                      const end = new Date(res.tripEnd);
-                      const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                      const hasStart = !!res.tripStart;
+                      const hasEnd = !!res.tripEnd;
+                      const start = hasStart ? new Date(res.tripStart) : null;
+                      const end = hasEnd ? new Date(res.tripEnd) : null;
+                      const days = start && end ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))) : null;
                       const matchedCar = cars.find(c => c.carId === res.carId);
+
+                      const formatDate = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                      const formatTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
                       return (
                         <div key={res.reservationId} className={`bg-white rounded-xl border border-gray-200 shadow-sm p-4 ${res.status === 'cancelled' ? 'opacity-60' : ''}`}>
@@ -450,31 +455,45 @@ export default function Home() {
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                             <div>
                               <div className="text-gray-400 text-xs mb-0.5">Vehicle</div>
-                              <div className="font-medium text-gray-900">{res.vehicleModel} {res.vehicleYear}</div>
+                              <div className="font-medium text-gray-900">
+                                {res.vehicleModel && res.vehicleYear ? `${res.vehicleModel} ${res.vehicleYear}` : res.vehicleModel || res.vehicleYear || '—'}
+                              </div>
                               {matchedCar && <div className="text-xs text-gray-400">{matchedCar.plate}</div>}
                             </div>
                             <div>
-                              <div className="text-gray-400 text-xs mb-0.5">Trip</div>
-                              <div className="font-medium text-gray-900">
-                                {start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} → {end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                              </div>
-                              <div className="text-xs text-gray-400">{days} day{days > 1 ? 's' : ''}</div>
+                              <div className="text-gray-400 text-xs mb-0.5">Trip Start</div>
+                              {start ? (
+                                <>
+                                  <div className="font-medium text-gray-900">{formatDate(start)}</div>
+                                  <div className="text-xs text-gray-500">{formatTime(start)}</div>
+                                </>
+                              ) : (
+                                <div className="font-medium text-amber-500">No date</div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="text-gray-400 text-xs mb-0.5">Trip End</div>
+                              {end ? (
+                                <>
+                                  <div className="font-medium text-gray-900">{formatDate(end)}</div>
+                                  <div className="text-xs text-gray-500">{formatTime(end)}</div>
+                                </>
+                              ) : (
+                                <div className="font-medium text-amber-500">No date</div>
+                              )}
                             </div>
                             <div>
                               <div className="text-gray-400 text-xs mb-0.5">Earnings</div>
                               <div className="font-medium text-green-600">{res.earnings ? `$${res.earnings.toFixed(2)}` : '—'}</div>
-                            </div>
-                            <div>
-                              <div className="text-gray-400 text-xs mb-0.5">Location</div>
-                              <div className="font-medium text-gray-900 text-xs">{res.location || '—'}</div>
+                              {days && <div className="text-xs text-gray-400">{days} day{days > 1 ? 's' : ''}</div>}
                             </div>
                           </div>
 
                           {res.messages.length > 0 && (
                             <div className="mt-3 pt-3 border-t border-gray-100">
-                              <div className="text-xs text-gray-400 mb-1">💬 Messages</div>
-                              {res.messages.slice(-3).map((msg, i) => (
-                                <div key={i} className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-1.5 mb-1">
+                              <div className="text-xs text-gray-400 mb-1">💬 Messages ({res.messages.length})</div>
+                              {res.messages.slice(-2).map((msg, i) => (
+                                <div key={i} className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-1.5 mb-1 truncate">
                                   {msg.text}
                                 </div>
                               ))}

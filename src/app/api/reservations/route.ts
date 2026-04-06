@@ -54,7 +54,19 @@ export async function GET(req: NextRequest) {
 
   // Filter out cancelled reservations
   reservations = reservations.filter(r => r.status !== 'cancelled');
-  reservations.sort((a, b) => new Date(b.tripStart).getTime() - new Date(a.tripStart).getTime());
+
+  // Sort chronologically by next upcoming event (start or end time)
+  // Reservations with no dates go to the end
+  reservations.sort((a, b) => {
+    const aStart = a.tripStart ? new Date(a.tripStart).getTime() : Infinity;
+    const aEnd = a.tripEnd ? new Date(a.tripEnd).getTime() : Infinity;
+    const bStart = b.tripStart ? new Date(b.tripStart).getTime() : Infinity;
+    const bEnd = b.tripEnd ? new Date(b.tripEnd).getTime() : Infinity;
+    // Use the earliest date for each reservation
+    const aEarliest = Math.min(aStart, aEnd);
+    const bEarliest = Math.min(bStart, bEnd);
+    return aEarliest - bEarliest;
+  });
 
   return NextResponse.json({ reservations, count: reservations.length });
 }
