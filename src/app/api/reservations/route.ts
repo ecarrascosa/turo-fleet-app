@@ -16,9 +16,9 @@ async function ensureSynced() {
 
   // Sync from Gmail — last 7 days for regular refreshes, 30 for cold start
   try {
-    const days = existing.length === 0 ? 30 : 7;
+    const days = existing.length === 0 ? 60 : 14;
     const afterDate = new Date(now - days * 24 * 60 * 60 * 1000).toISOString();
-    const emails = await fetchTuroEmails(existing.length === 0 ? 50 : 20, afterDate);
+    const emails = await fetchTuroEmails(existing.length === 0 ? 100 : 50, afterDate);
     let fleetCars: Array<{ carId: string; name: string }> = [];
     try {
       const fleet = await getFleet();

@@ -129,27 +129,43 @@ export function parseTuroEmail(text: string): TuroEmail | null {
 }
 
 function parseTripDate(text: string, label: string): string | undefined {
-  // Pattern: "Trip start: 3/17/26 6:30 pm"
-  const pattern = new RegExp(label + ':?\\s*(\\d{1,2})/(\\d{1,2})/(\\d{2,4})\\s+(\\d{1,2}:\\d{2}\\s*(?:AM|PM|am|pm))', 'i');
-  const m = text.match(pattern);
-  if (!m) return undefined;
+  // Pattern 1: "Trip start: 3/17/26 6:30 pm" (US format M/D/YY)
+  const usPattern = new RegExp(label + ':?\\s*(\\d{1,2})/(\\d{1,2})/(\\d{2,4})\\s+(\\d{1,2}:\\d{2}\\s*(?:AM|PM|am|pm))', 'i');
+  const usMatch = text.match(usPattern);
+  if (usMatch) {
+    const month = parseInt(usMatch[1]);
+    const day = parseInt(usMatch[2]);
+    let year = parseInt(usMatch[3]);
+    if (year < 100) year += 2000;
 
-  const month = parseInt(m[1]);
-  const day = parseInt(m[2]);
-  let year = parseInt(m[3]);
-  if (year < 100) year += 2000;
+    const timeParts = usMatch[4].match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!timeParts) return undefined;
 
-  const timeParts = m[4].match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-  if (!timeParts) return undefined;
+    let hours = parseInt(timeParts[1]);
+    const minutes = parseInt(timeParts[2]);
+    const ampm = timeParts[3].toUpperCase();
+    if (ampm === 'PM' && hours !== 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
 
-  let hours = parseInt(timeParts[1]);
-  const minutes = parseInt(timeParts[2]);
-  const ampm = timeParts[3].toUpperCase();
-  if (ampm === 'PM' && hours !== 12) hours += 12;
-  if (ampm === 'AM' && hours === 12) hours = 0;
+    const date = new Date(year, month - 1, day, hours, minutes);
+    return date.toISOString();
+  }
 
-  const date = new Date(year, month - 1, day, hours, minutes);
-  return date.toISOString();
+  // Pattern 2: "Trip start: 07/04/2026 07:00" (DD/MM/YYYY HH:MM - international format)
+  const intlPattern = new RegExp(label + ':?\\s*(\\d{2})/(\\d{2})/(\\d{4})\\s+(\\d{1,2}):(\\d{2})', 'i');
+  const intlMatch = text.match(intlPattern);
+  if (intlMatch) {
+    const day = parseInt(intlMatch[1]);
+    const month = parseInt(intlMatch[2]);
+    const year = parseInt(intlMatch[3]);
+    const hours = parseInt(intlMatch[4]);
+    const minutes = parseInt(intlMatch[5]);
+
+    const date = new Date(year, month - 1, day, hours, minutes);
+    return date.toISOString();
+  }
+
+  return undefined;
 }
 
 export function parseTuroEmails(rawText: string): TuroEmail[] {

@@ -47,6 +47,7 @@ export default function Home() {
   const [view, setView] = useState<'fleet' | 'map' | 'reservations' | 'analytics'>('map');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tripsTab, setTripsTab] = useState<'booked' | 'history'>('booked');
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -393,120 +394,238 @@ export default function Home() {
             </>
           )}
 
-          {/* Reservations View */}
-          {view === 'reservations' && (
-            <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 bg-gray-50 pb-20 lg:pb-6">
-              <div className="max-w-5xl mx-auto">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">📅 Reservations</h1>
-                  <div className="flex items-center gap-3 text-xs sm:text-sm text-gray-500">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> {reservations.filter(r => r.status === 'active').length} Active</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> {reservations.filter(r => r.status === 'booked').length} Upcoming</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> {reservations.filter(r => r.status === 'completed').length} Completed</span>
+          {/* Reservations / Trips View */}
+          {view === 'reservations' && (() => {
+            const now = new Date();
+            const todayStr = now.toDateString();
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = tomorrow.toDateString();
+
+            const formatTimeAmPm = (d: Date) => {
+              const h = d.getHours();
+              const m = d.getMinutes();
+              const ampm = h >= 12 ? 'p.m.' : 'a.m.';
+              const hour = h % 12 || 12;
+              return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
+            };
+
+            const getDayLabel = (d: Date) => {
+              const ds = d.toDateString();
+              if (ds === todayStr) return 'Today';
+              if (ds === tomorrowStr) return 'Tomorrow';
+              return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            };
+
+            const getDayKey = (d: Date) => {
+              return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            };
+
+            // Build events: each reservation produces start + end events
+            type TripEvent = {
+              type: 'start' | 'end';
+              time: Date;
+              reservation: Reservation;
+              car: Car | undefined;
+            };
+
+            const filteredRes = tripsTab === 'booked'
+              ? reservations.filter(r => r.status === 'booked' || r.status === 'active')
+              : reservations.filter(r => r.status === 'completed');
+
+            const events: TripEvent[] = [];
+            filteredRes.forEach(res => {
+              const car = cars.find(c => c.carId === res.carId);
+              if (res.tripStart) {
+                events.push({ type: 'start', time: new Date(res.tripStart), reservation: res, car });
+              }
+              if (res.tripEnd) {
+                events.push({ type: 'end', time: new Date(res.tripEnd), reservation: res, car });
+              }
+            });
+
+            // Booked: chronological (ascending), History: most recent first (descending)
+            if (tripsTab === 'booked') {
+              events.sort((a, b) => a.time.getTime() - b.time.getTime());
+            } else {
+              events.sort((a, b) => b.time.getTime() - a.time.getTime());
+            }
+
+            // Group by day
+            const grouped: { label: string; key: string; events: TripEvent[] }[] = [];
+            const dayMap = new Map<string, TripEvent[]>();
+            const dayOrder: string[] = [];
+            events.forEach(ev => {
+              const key = getDayKey(ev.time);
+              if (!dayMap.has(key)) { dayMap.set(key, []); dayOrder.push(key); }
+              dayMap.get(key)!.push(ev);
+            });
+            dayOrder.forEach(key => {
+              const evs = dayMap.get(key)!;
+              grouped.push({ label: getDayLabel(evs[0].time), key, events: evs });
+            });
+
+            // Determine status badge for an event
+            const getStatusBadge = (ev: TripEvent) => {
+              const evDay = ev.time.toDateString();
+              const isToday = evDay === todayStr;
+              const isPast = ev.time.getTime() < now.getTime();
+              const timeStr = formatTimeAmPm(ev.time);
+
+              if (ev.reservation.status === 'active' && ev.type === 'start' && isPast) {
+                // Currently in progress - check if it started today
+                if (isToday) {
+                  const endTime = ev.reservation.tripEnd ? new Date(ev.reservation.tripEnd) : null;
+                  if (endTime && endTime.getTime() > now.getTime()) {
+                    return { text: 'In progress', style: 'plain' as const };
+                  }
+                  return { text: `Started at ${timeStr}`, style: 'plain' as const };
+                }
+                return { text: 'In progress', style: 'plain' as const };
+              }
+
+              if (ev.type === 'start') {
+                if (isPast && isToday) return { text: `Started at ${timeStr}`, style: 'plain' as const };
+                if (isPast) return { text: `Started at ${timeStr}`, style: 'plain' as const };
+                return { text: `Starting at ${timeStr}`, style: 'green' as const };
+              } else {
+                if (isPast) return { text: `Ended at ${timeStr}`, style: 'plain' as const };
+                return { text: `Ending at ${timeStr}`, style: 'red' as const };
+              }
+            };
+
+            return (
+              <div className="absolute inset-0 overflow-y-auto bg-white pb-20 lg:pb-6">
+                <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10">
+                  {/* Tab headers */}
+                  <div className="flex gap-8 mb-6">
+                    <button
+                      onClick={() => setTripsTab('booked')}
+                      className={`text-2xl sm:text-3xl font-bold pb-1 ${tripsTab === 'booked' ? 'text-gray-900' : 'text-gray-300 hover:text-gray-400'}`}
+                    >Booked</button>
+                    <button
+                      onClick={() => setTripsTab('history')}
+                      className={`text-2xl sm:text-3xl font-bold pb-1 ${tripsTab === 'history' ? 'text-gray-900' : 'text-gray-300 hover:text-gray-400'}`}
+                    >History</button>
                   </div>
-                </div>
 
-                {reservations.length === 0 ? (
-                  <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-                    <div className="text-4xl mb-3">📭</div>
-                    <h2 className="text-lg font-semibold text-gray-700 mb-1">No reservations yet</h2>
-                    <p className="text-sm text-gray-500">Connect Gmail to automatically import Turo bookings, or use the API to add them manually.</p>
+                  {/* Vehicle filter dropdown */}
+                  <div className="mb-8">
+                    <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-full text-sm text-gray-700 hover:bg-gray-50">
+                      All vehicles
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {reservations.map(res => {
-                      const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-                        active: { bg: 'bg-green-100', text: 'text-green-700', label: 'Active' },
-                        booked: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Upcoming' },
-                        completed: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Completed' },
-                        cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Cancelled' },
-                      };
-                      const sc = statusConfig[res.status] || statusConfig.booked;
-                      const hasStart = !!res.tripStart;
-                      const hasEnd = !!res.tripEnd;
-                      const start = hasStart ? new Date(res.tripStart) : null;
-                      const end = hasEnd ? new Date(res.tripEnd) : null;
-                      const days = start && end ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))) : null;
-                      const matchedCar = cars.find(c => c.carId === res.carId);
 
-                      const formatDate = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-                      const formatTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-
-                      return (
-                        <div key={res.reservationId} className={`bg-white rounded-xl border border-gray-200 shadow-sm p-4 ${res.status === 'cancelled' ? 'opacity-60' : ''}`}>
-                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-lg">
-                                👤
-                              </div>
-                              <div>
-                                <div className="font-semibold text-gray-900">{res.guestName}</div>
-                                {res.guestPhone && <div className="text-xs text-gray-500">{res.guestPhone}</div>}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${sc.bg} ${sc.text}`}>
-                                {sc.label}
-                              </span>
-                              <span className="text-xs text-gray-400">#{res.reservationId}</span>
-                            </div>
+                  {events.length === 0 ? (
+                    <div className="text-center py-16">
+                      <div className="text-4xl mb-3">📭</div>
+                      <h2 className="text-lg font-semibold text-gray-700 mb-1">
+                        {tripsTab === 'booked' ? 'No upcoming trips' : 'No trip history'}
+                      </h2>
+                      <p className="text-sm text-gray-500">
+                        {tripsTab === 'booked'
+                          ? 'Your booked and active trips will appear here.'
+                          : 'Completed trips will appear here.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {grouped.map(group => (
+                        <div key={group.key}>
+                          {/* Day header */}
+                          <div className="mb-4">
+                            <h2 className="text-base sm:text-lg font-medium text-gray-900 mb-2">{group.label}</h2>
+                            <div className="border-b border-gray-200" />
                           </div>
 
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                            <div>
-                              <div className="text-gray-400 text-xs mb-0.5">Vehicle</div>
-                              <div className="font-medium text-gray-900">
-                                {res.vehicleModel && res.vehicleYear ? `${res.vehicleModel} ${res.vehicleYear}` : res.vehicleModel || res.vehicleYear || '—'}
-                              </div>
-                              {matchedCar && <div className="text-xs text-gray-400">{matchedCar.plate}</div>}
-                            </div>
-                            <div>
-                              <div className="text-gray-400 text-xs mb-0.5">Trip Start</div>
-                              {start ? (
-                                <>
-                                  <div className="font-medium text-gray-900">{formatDate(start)}</div>
-                                  <div className="text-xs text-gray-500">{formatTime(start)}</div>
-                                </>
-                              ) : (
-                                <div className="font-medium text-amber-500">No date</div>
-                              )}
-                            </div>
-                            <div>
-                              <div className="text-gray-400 text-xs mb-0.5">Trip End</div>
-                              {end ? (
-                                <>
-                                  <div className="font-medium text-gray-900">{formatDate(end)}</div>
-                                  <div className="text-xs text-gray-500">{formatTime(end)}</div>
-                                </>
-                              ) : (
-                                <div className="font-medium text-amber-500">No date</div>
-                              )}
-                            </div>
-                            <div>
-                              <div className="text-gray-400 text-xs mb-0.5">Earnings</div>
-                              <div className="font-medium text-green-600">{res.earnings ? `$${res.earnings.toFixed(2)}` : '—'}</div>
-                              {days && <div className="text-xs text-gray-400">{days} day{days > 1 ? 's' : ''}</div>}
-                            </div>
-                          </div>
+                          {/* Event cards */}
+                          <div className="space-y-4">
+                            {group.events.map((ev, idx) => {
+                              const badge = getStatusBadge(ev);
+                              const res = ev.reservation;
+                              const car = ev.car;
+                              const plate = car?.plate || '';
+                              const photo = plate ? getCarPhoto(plate) : null;
+                              const icon = car ? getCarIcon(car.name) : null;
+                              const vehicleName = `${res.vehicleModel || ''} ${res.vehicleYear || ''}`.trim() || 'Unknown Vehicle';
+                              const address = res.location || '';
 
-                          {res.messages.length > 0 && (
-                            <div className="mt-3 pt-3 border-t border-gray-100">
-                              <div className="text-xs text-gray-400 mb-1">💬 Messages ({res.messages.length})</div>
-                              {res.messages.slice(-2).map((msg, i) => (
-                                <div key={i} className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-1.5 mb-1 truncate">
-                                  {msg.text}
+                              return (
+                                <div
+                                  key={`${res.reservationId}-${ev.type}-${idx}`}
+                                  className="border border-gray-200 rounded-xl p-5 sm:p-6 flex justify-between items-start gap-4"
+                                >
+                                  {/* Left side */}
+                                  <div className="flex-1 min-w-0">
+                                    {/* Status badge */}
+                                    <div className="mb-2">
+                                      {badge.style === 'plain' && (
+                                        <span className="text-sm text-gray-700">{badge.text}</span>
+                                      )}
+                                      {badge.style === 'green' && (
+                                        <span className="inline-block text-sm text-green-800 bg-green-50 border border-green-300 rounded px-2.5 py-0.5">{badge.text}</span>
+                                      )}
+                                      {badge.style === 'red' && (
+                                        <span className="inline-block text-sm text-red-700 bg-red-50 border border-red-300 rounded px-2.5 py-0.5">{badge.text}</span>
+                                      )}
+                                    </div>
+
+                                    {/* Vehicle name */}
+                                    <h3 className="text-lg font-bold text-gray-900 mb-1">{vehicleName}</h3>
+
+                                    {/* Address */}
+                                    {address && (
+                                      <p className="text-sm text-gray-500 mb-3">{address}</p>
+                                    )}
+
+                                    {/* Guest info */}
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-sm shrink-0">
+                                        👤
+                                      </div>
+                                      <span className="text-sm text-gray-600">
+                                        {res.guestName} <span className="text-gray-400">#{res.reservationId}</span>
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Right side - car photo + plate */}
+                                  <div className="flex flex-col items-center shrink-0">
+                                    {photo ? (
+                                      <img
+                                        src={photo}
+                                        alt={vehicleName}
+                                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover"
+                                      />
+                                    ) : icon ? (
+                                      <div
+                                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg flex items-center justify-center text-3xl"
+                                        style={{ backgroundColor: icon.color + '15' }}
+                                      >
+                                        {icon.emoji}
+                                      </div>
+                                    ) : (
+                                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-gray-100 flex items-center justify-center text-3xl">
+                                        🚗
+                                      </div>
+                                    )}
+                                    {plate && (
+                                      <span className="text-xs text-gray-500 mt-1">{plate}</span>
+                                    )}
+                                  </div>
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                              );
+                            })}
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Analytics View */}
           {view === 'analytics' && (
