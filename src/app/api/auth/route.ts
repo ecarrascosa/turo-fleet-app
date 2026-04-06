@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const clientId = process.env.GMAIL_CLIENT_ID!;
-  const redirectUri = process.env.GMAIL_REDIRECT_URI!;
-  
   const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
+    client_id: process.env.GMAIL_CLIENT_ID!,
+    redirect_uri: process.env.GMAIL_REDIRECT_URI!,
     response_type: 'code',
     scope: 'https://www.googleapis.com/auth/gmail.readonly',
     access_type: 'offline',
