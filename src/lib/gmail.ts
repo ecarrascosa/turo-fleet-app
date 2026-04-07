@@ -63,9 +63,7 @@ export async function fetchTuroEmails(maxResults = 20, afterDate?: string): Prom
   // Fetch booking/modification emails first (they have the dates), then messages
   const queries = [
     `from:noreply@mail.turo.com subject:"is booked"${dateFilter}`,
-    `from:noreply@mail.turo.com subject:"has changed"${dateFilter}`,
     `from:noreply@mail.turo.com subject:"has cancelled"${dateFilter}`,
-    `from:noreply@mail.turo.com subject:"has sent you a message"${dateFilter}`,
   ];
 
   const allMessages: Array<{ id: string }> = [];

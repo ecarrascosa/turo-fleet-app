@@ -128,6 +128,22 @@ export function parseTuroEmail(text: string): TuroEmail | null {
   };
 }
 
+/**
+ * Convert a local Pacific time to an ISO string.
+ * Determines PDT vs PST offset by checking if the date falls in DST.
+ */
+function toPacificISO(year: number, month: number, day: number, hours: number, minutes: number): string {
+  // Build a Date object using UTC values, then check Pacific offset
+  // Use Intl to determine if this date is PDT (-7) or PST (-8)
+  const roughly = new Date(Date.UTC(year, month - 1, day, hours + 8, minutes)); // assume PST first
+  const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', timeZoneName: 'short' });
+  const parts = fmt.format(roughly);
+  const isPDT = parts.includes('PDT');
+  const offsetHours = isPDT ? 7 : 8;
+  const utc = new Date(Date.UTC(year, month - 1, day, hours + offsetHours, minutes));
+  return utc.toISOString();
+}
+
 function parseTripDate(text: string, label: string): string | undefined {
   // Pattern 1: "Trip start: 3/17/26 6:30 pm" (US format M/D/YY)
   const usPattern = new RegExp(label + ':?\\s*(\\d{1,2})/(\\d{1,2})/(\\d{2,4})\\s+(\\d{1,2}:\\d{2}\\s*(?:AM|PM|am|pm))', 'i');
@@ -147,8 +163,9 @@ function parseTripDate(text: string, label: string): string | undefined {
     if (ampm === 'PM' && hours !== 12) hours += 12;
     if (ampm === 'AM' && hours === 12) hours = 0;
 
-    const date = new Date(year, month - 1, day, hours, minutes);
-    return date.toISOString();
+    // Turo dates are in Pacific time — construct ISO string with explicit offset
+    const pacificISO = toPacificISO(year, month, day, hours, minutes);
+    return pacificISO;
   }
 
   // Pattern 2: "Trip start: 07/04/2026 07:00" (DD/MM/YYYY HH:MM - international format)
@@ -161,8 +178,8 @@ function parseTripDate(text: string, label: string): string | undefined {
     const hours = parseInt(intlMatch[4]);
     const minutes = parseInt(intlMatch[5]);
 
-    const date = new Date(year, month - 1, day, hours, minutes);
-    return date.toISOString();
+    const pacificISO = toPacificISO(year, month, day, hours, minutes);
+    return pacificISO;
   }
 
   return undefined;

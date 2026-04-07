@@ -429,12 +429,21 @@ export default function Home() {
               car: Car | undefined;
             };
 
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const tomorrowEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
             const filteredRes = tripsTab === 'booked'
-              ? reservations.filter(r => r.status === 'booked' || r.status === 'active')
+              ? reservations.filter(r => {
+                  if (r.status === 'booked' || r.status === 'active') return true;
+                  // Also include completed trips that ended today
+                  if (r.status === 'completed' && r.tripEnd) {
+                    const end = new Date(r.tripEnd);
+                    return end >= todayStart && end < tomorrowEnd;
+                  }
+                  return false;
+                })
               : reservations.filter(r => r.status === 'completed');
 
             const events: TripEvent[] = [];
-            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             filteredRes.forEach(res => {
               const car = cars.find(c => c.carId === res.carId);
               const start = res.tripStart ? new Date(res.tripStart) : null;
