@@ -594,7 +594,7 @@ export default function Home() {
                               const plate = car?.plate || '';
                               const photo = plate ? getCarPhoto(plate) : null;
                               const icon = car ? getCarIcon(car.name) : null;
-                              const vehicleName = `${res.vehicleModel || ''} ${res.vehicleYear || ''}`.trim() || 'Unknown Vehicle';
+                              const vehicleName = car?.name || `${res.vehicleModel || ''} ${res.vehicleYear || ''}`.trim() || 'Unknown Vehicle';
                               const address = res.location || '';
 
                               return (
