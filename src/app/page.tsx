@@ -48,6 +48,7 @@ export default function Home() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tripsTab, setTripsTab] = useState<'booked' | 'history'>('booked');
+  const [syncing, setSyncing] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -544,7 +545,7 @@ export default function Home() {
               <div className="absolute inset-0 overflow-y-auto bg-white pb-20 lg:pb-6">
                 <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10">
                   {/* Tab headers */}
-                  <div className="flex gap-8 mb-6">
+                  <div className="flex gap-8 mb-6 items-center">
                     <button
                       onClick={() => setTripsTab('booked')}
                       className={`text-2xl sm:text-3xl font-bold pb-1 ${tripsTab === 'booked' ? 'text-gray-900' : 'text-gray-300 hover:text-gray-400'}`}
@@ -553,6 +554,22 @@ export default function Home() {
                       onClick={() => setTripsTab('history')}
                       className={`text-2xl sm:text-3xl font-bold pb-1 ${tripsTab === 'history' ? 'text-gray-900' : 'text-gray-300 hover:text-gray-400'}`}
                     >History</button>
+                    <button
+                      onClick={async () => {
+                        setSyncing(true);
+                        try {
+                          await fetch('/api/reservations/sync');
+                          await fetchData();
+                          showToast('Reservations synced');
+                        } catch { showToast('Sync failed', 'error'); }
+                        setSyncing(false);
+                      }}
+                      disabled={syncing}
+                      className="ml-auto p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                      title="Sync reservations"
+                    >
+                      <svg className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    </button>
                   </div>
 
                   {/* Vehicle filter dropdown */}
