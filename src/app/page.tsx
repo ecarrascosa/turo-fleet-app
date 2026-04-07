@@ -450,12 +450,10 @@ export default function Home() {
               const end = res.tripEnd ? new Date(res.tripEnd) : null;
 
               if (tripsTab === 'booked') {
-                // For booked: skip past start events, but show "In progress" as today event
+                // For booked: show start events for trips starting today or later
+                // Skip "in progress" placeholders for multi-day trips that started before today
                 if (start && start >= todayStart) {
                   events.push({ type: 'start', time: start, reservation: res, car });
-                } else if (start && end && start < todayStart && end >= todayStart) {
-                  // Trip already started — show as "in progress" at start of today
-                  events.push({ type: 'start', time: todayStart, reservation: res, car });
                 }
                 if (end) {
                   events.push({ type: 'end', time: end, reservation: res, car });

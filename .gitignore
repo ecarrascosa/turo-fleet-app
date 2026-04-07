@@ -27,3 +27,7 @@ npm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 get-token.js
+.env.prod
+.env.prod2
+.env.prod3
+.env.vercel
