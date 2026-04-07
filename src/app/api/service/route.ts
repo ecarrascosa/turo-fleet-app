@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fleetData from '@/data/fleet.json';
+import odometerData from '@/data/odometer.json';
 
 const SERVICE_INTERVAL = 7000;
 
-// In-memory store (resets on cold start — replace with Vercel KV later)
-const odoStore: Record<string, { mileage: number; timestamp: string; type: string }> = {};
+// In-memory overrides (survive warm invocations)
+const odoOverrides: Record<string, number> = {};
 const serviceOverrides: Record<string, number> = {};
 
 interface FleetCar {
@@ -13,11 +14,17 @@ interface FleetCar {
   lastService: number | null;
 }
 
+function getCurrentOdo(plate: string): number | null {
+  // Priority: manual override > Turo CSV data
+  if (odoOverrides[plate]) return odoOverrides[plate];
+  const csvOdo = (odometerData as Record<string, number>)[plate];
+  return csvOdo ?? null;
+}
+
 function getServiceStatus(cars: FleetCar[]) {
   return cars.map(car => {
-    const latestOdo = odoStore[car.plate];
     const lastService = serviceOverrides[car.plate] ?? car.lastService;
-    const currentOdo = latestOdo?.mileage ?? null;
+    const currentOdo = getCurrentOdo(car.plate);
     const nextService = lastService != null ? lastService + SERVICE_INTERVAL : null;
     const remaining = (nextService != null && currentOdo != null) ? nextService - currentOdo : null;
 
@@ -38,7 +45,6 @@ function getServiceStatus(cars: FleetCar[]) {
       nextService,
       remaining,
       status,
-      lastReading: latestOdo?.timestamp ?? null,
     };
   }).sort((a, b) => {
     const order = { 'overdue': 0, 'due-soon': 1, 'ok': 2, 'no-data': 3 };
@@ -58,7 +64,6 @@ export async function GET() {
     serviceInterval: SERVICE_INTERVAL,
     summary: { total: status.length, overdue, dueSoon },
     cars: status,
-    storage: 'memory', // will be 'kv' when Vercel KV is connected
   });
 }
 
@@ -67,16 +72,12 @@ export async function POST(request: NextRequest) {
   const { action } = body;
 
   if (action === 'log-odometer') {
-    const { plate, mileage, type } = body;
+    const { plate, mileage } = body;
     if (!plate || !mileage) {
       return NextResponse.json({ error: 'plate and mileage required' }, { status: 400 });
     }
-    odoStore[plate] = {
-      mileage: Number(mileage),
-      timestamp: new Date().toISOString(),
-      type: type || 'checkin',
-    };
-    return NextResponse.json({ success: true, stored: odoStore[plate] });
+    odoOverrides[plate] = Number(mileage);
+    return NextResponse.json({ success: true, plate, mileage: Number(mileage) });
   }
 
   if (action === 'update-service') {
