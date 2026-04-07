@@ -25,13 +25,20 @@ export async function GET() {
     }
 
     // Bouncie cars — normalize to same Car shape
+    // Manual plate mapping (Bouncie doesn't store plates)
+    const bounciePlates: Record<string, string> = {
+      '5UXWX9C54G0D68890': '9XTY709',  // 2016 BMW X3
+      '5UXWX7C51E0E78992': '',          // 2014 BMW X3
+      'WBA3C3C58EF984061': '',          // 2014 BMW 320i
+      'JTDBCMFE5SJ040887': '',          // 2025 Toyota Corolla
+    };
     if (bouncieVehicles.status === 'fulfilled') {
       for (const v of bouncieVehicles.value) {
         const name = v.nickName || `${v.model.year} ${v.model.make} ${v.model.name}`;
         cars.push({
           carId: `bouncie-${v.imei}`,
           name,
-          plate: '', // Bouncie doesn't provide plates
+          plate: bounciePlates[v.vin] || '',
           imei: v.imei,
           online: true, // Bouncie devices are always "online" if reporting
           moving: v.stats.isRunning && v.stats.speed > 5,
