@@ -146,6 +146,8 @@ export function upsertFromEmail(email: TuroEmail, fleetCars?: Array<{ carId: str
     if (email.tripStart) existing.tripStart = email.tripStart;
     if (email.tripEnd) existing.tripEnd = email.tripEnd;
     if (email.earnings !== undefined) existing.earnings = email.earnings;
+    if (email.vehicleModel) existing.vehicleModel = email.vehicleModel;
+    if (email.vehicleYear) existing.vehicleYear = email.vehicleYear;
     existing.updatedAt = now;
     // Re-match car if fleet data provided
     if (fleetCars) {
@@ -163,6 +165,8 @@ export function upsertFromEmail(email: TuroEmail, fleetCars?: Array<{ carId: str
     if (email.guestPhone) existing.guestPhone = email.guestPhone;
     if (email.location) existing.location = email.location;
     if (email.distanceIncluded !== undefined) existing.distanceIncluded = email.distanceIncluded;
+    if (email.vehicleModel) existing.vehicleModel = email.vehicleModel;
+    if (email.vehicleYear) existing.vehicleYear = email.vehicleYear;
     existing.updatedAt = now;
     if (fleetCars) {
       existing.carId = matchCarId(existing.vehicleModel, existing.vehicleYear, fleetCars) || existing.carId;

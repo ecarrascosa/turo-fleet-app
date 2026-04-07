@@ -70,14 +70,42 @@ export function parseTuroEmail(text: string): TuroEmail | null {
   const phoneMatch = text.match(/\((\d{3})\)\s*(\d{3})-(\d{4})/);
   const guestPhone = phoneMatch ? `(${phoneMatch[1]}) ${phoneMatch[2]}-${phoneMatch[3]}` : undefined;
 
-  // Vehicle — standalone line like "Toyota Corolla 2022" or "Jeep Cherokee 2016"
+  // Vehicle — try multiple patterns
   let vehicleYear = '';
   let vehicleModel = '';
-  // Look for "Make Model Year" on its own line
+
+  // Pattern 1: "Make Model Year" on its own line (e.g. "  Toyota Corolla 2022")
   const vMatch = text.match(/^\s+((?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+\d)?)\s+(20\d{2}))\s*$/m);
   if (vMatch) {
     vehicleModel = vMatch[1].replace(/\s+20\d{2}$/, '').trim();
     vehicleYear = vMatch[2];
+  }
+
+  // Pattern 2: From subject/header — "trip with your [Vehicle Make Model Year]"
+  if (!vehicleModel) {
+    const subjectMatch = text.match(/trip with your\s+(.+?)\s+(20\d{2})\b/i);
+    if (subjectMatch) {
+      vehicleModel = subjectMatch[1].trim();
+      vehicleYear = subjectMatch[2];
+    }
+  }
+
+  // Pattern 3: "your [Vehicle Year Make Model]" — "your 2025 Toyota RAV4"
+  if (!vehicleModel) {
+    const yourMatch = text.match(/your\s+(20\d{2})\s+([A-Za-z][A-Za-z\s]+?)(?:\s+is\b|\s+on\b|\s*[.!,]|\s*$)/im);
+    if (yourMatch) {
+      vehicleYear = yourMatch[1];
+      vehicleModel = yourMatch[2].trim();
+    }
+  }
+
+  // Pattern 4: Any line with "Make Model Year" (looser — allows lowercase, hyphens)
+  if (!vehicleModel) {
+    const looseMatch = text.match(/^\s+((?:[A-Za-z][\w-]+(?:\s+[A-Za-z][\w-]+)*)\s+(20\d{2}))\s*$/m);
+    if (looseMatch) {
+      vehicleModel = looseMatch[1].replace(/\s+20\d{2}$/, '').trim();
+      vehicleYear = looseMatch[2];
+    }
   }
 
   // Trip dates — "Trip start: 3/17/26 6:30 pm"
