@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   // Step 1: Get transaction ID from Bouncie
   const clientId = process.env.BOUNCIE_CLIENT_ID;
