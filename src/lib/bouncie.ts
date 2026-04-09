@@ -41,8 +41,47 @@ let cachedAccessToken: string | null = null;
 let cachedRefreshToken: string | null = null;
 let tokenExpiry: number = 0;
 
+/** Fetch the latest BOUNCIE_REFRESH_TOKEN from Vercel env vars API (cold start recovery) */
+async function fetchRefreshTokenFromVercel(): Promise<string | null> {
+  const token = process.env.VERCEL_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  const teamId = process.env.VERCEL_TEAM_ID;
+  if (!token || !projectId) return null;
+
+  try {
+    const qs = teamId ? `?teamId=${teamId}` : '';
+    const listRes = await fetch(`https://api.vercel.com/v9/projects/${projectId}/env${qs}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!listRes.ok) return null;
+    const { envs } = await listRes.json();
+    const existing = envs?.find((e: any) => e.key === 'BOUNCIE_REFRESH_TOKEN');
+    if (!existing?.id) return null;
+
+    // Fetch the decrypted value
+    const detailRes = await fetch(
+      `https://api.vercel.com/v9/projects/${projectId}/env/${existing.id}${qs}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!detailRes.ok) return null;
+    const detail = await detailRes.json();
+    return detail.value || null;
+  } catch (e) {
+    console.warn('[Bouncie] Failed to fetch refresh token from Vercel API:', e);
+    return null;
+  }
+}
+
 async function refreshAccessToken(): Promise<string> {
-  const refreshToken = cachedRefreshToken || process.env.BOUNCIE_REFRESH_TOKEN;
+  // Try cached → Vercel API (latest) → process.env (deploy-time fallback)
+  let refreshToken = cachedRefreshToken;
+  if (!refreshToken) {
+    console.log('[Bouncie] No cached refresh token, fetching from Vercel API...');
+    refreshToken = await fetchRefreshTokenFromVercel();
+  }
+  if (!refreshToken) {
+    refreshToken = process.env.BOUNCIE_REFRESH_TOKEN || null;
+  }
   if (!refreshToken) throw new Error('No Bouncie refresh token available');
 
   const res = await fetch(BOUNCIE_TOKEN_URL, {
