@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get('code');
+  const error = req.nextUrl.searchParams.get('error');
 
-  if (!code) {
-    return NextResponse.json({ error: 'No authorization code received' }, { status: 400 });
-  }
+  if (error) return NextResponse.json({ error }, { status: 400 });
+  if (!code) return NextResponse.json({ error: 'No code' }, { status: 400 });
 
-  const res = await fetch('https://auth.bouncie.com/oauth/token', {
+  const tokenRes = await fetch('https://auth.bouncie.com/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -15,20 +15,26 @@ export async function GET(req: NextRequest) {
       client_secret: process.env.BOUNCIE_CLIENT_SECRET,
       grant_type: 'authorization_code',
       code,
-      redirect_uri: process.env.BOUNCIE_REDIRECT_URI,
+      redirect_uri: 'http://localhost:3000/api/bouncie/callback',
     }),
   });
 
-  if (!res.ok) {
-    const error = await res.text();
-    return NextResponse.json({ error: 'Token exchange failed', details: error }, { status: 500 });
+  const data = await tokenRes.json();
+
+  if (data.error) {
+    return NextResponse.json({ error: data.error, desc: data.error_description }, { status: 400 });
   }
 
-  const data = await res.json();
-
-  return NextResponse.json({
-    message: 'Bouncie connected!',
-    access_token: data.access_token,
-    token_type: data.token_type,
-  });
+  // Show tokens for copying
+  return new NextResponse(
+    `<html><body style="font-family:monospace;padding:40px;background:#111;color:#0f0">
+      <h2>✅ Bouncie Connected!</h2>
+      <p><b>Access Token:</b></p>
+      <textarea readonly style="width:100%;height:60px;background:#222;color:#0f0;border:1px solid #333;padding:8px">${data.access_token}</textarea>
+      <p><b>Refresh Token:</b></p>
+      <textarea readonly style="width:100%;height:60px;background:#222;color:#0f0;border:1px solid #333;padding:8px">${data.refresh_token}</textarea>
+      <p style="color:#888">Send these to David or just tell him it worked.</p>
+    </body></html>`,
+    { headers: { 'Content-Type': 'text/html' } }
+  );
 }
