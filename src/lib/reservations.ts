@@ -1,12 +1,6 @@
-import fs from 'fs';
-import path from 'path';
+import { sql } from '@vercel/postgres';
+import { randomBytes } from 'crypto';
 import { TuroEmail } from './turo-emails';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const RESERVATIONS_FILE = path.join(DATA_DIR, 'reservations.json');
-
-// In-memory cache for serverless environments (Vercel)
-let memoryCache: Reservation[] | null = null;
 
 export interface GuestMessage {
   text: string;
@@ -14,6 +8,7 @@ export interface GuestMessage {
 }
 
 export interface Reservation {
+  id: number;
   reservationId: string;
   guestName: string;
   guestPhone?: string;
@@ -26,87 +21,120 @@ export interface Reservation {
   location?: string;
   status: 'booked' | 'active' | 'completed' | 'cancelled';
   carId?: string; // WhatsGPS car ID
+  renterToken: string; // unique token for shareable link
   messages: GuestMessage[];
   createdAt: string;
   updatedAt: string;
 }
 
-function ensureDataDir() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  } catch { /* read-only filesystem on Vercel */ }
+/** Initialize the database tables */
+export async function initDB() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS reservations (
+      id SERIAL PRIMARY KEY,
+      reservation_id VARCHAR(50) UNIQUE NOT NULL,
+      guest_name VARCHAR(100) NOT NULL,
+      guest_phone VARCHAR(30),
+      vehicle_year VARCHAR(4),
+      vehicle_model VARCHAR(100),
+      car_id VARCHAR(50),
+      trip_start TIMESTAMPTZ NOT NULL,
+      trip_end TIMESTAMPTZ NOT NULL,
+      earnings DECIMAL(10,2),
+      distance_included INTEGER,
+      location TEXT,
+      status VARCHAR(20) DEFAULT 'booked',
+      renter_token VARCHAR(64) UNIQUE NOT NULL,
+      messages JSONB DEFAULT '[]',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_res_renter_token ON reservations(renter_token)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_res_status ON reservations(status)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_res_reservation_id ON reservations(reservation_id)`;
 }
 
-function loadReservations(): Reservation[] {
-  // Try memory cache first (serverless)
-  if (memoryCache !== null) return memoryCache;
-
-  ensureDataDir();
-  try {
-    const data = JSON.parse(fs.readFileSync(RESERVATIONS_FILE, 'utf-8'));
-    memoryCache = data;
-    return data;
-  } catch {
-    return [];
-  }
+function generateToken(): string {
+  return randomBytes(16).toString('hex'); // 32 char hex string
 }
 
-function saveReservations(reservations: Reservation[]) {
-  // Always update memory cache
-  memoryCache = reservations;
-
-  // Try filesystem (works locally, fails silently on Vercel)
-  try {
-    ensureDataDir();
-    fs.writeFileSync(RESERVATIONS_FILE, JSON.stringify(reservations, null, 2));
-  } catch { /* read-only on Vercel — that's fine, memory cache is primary */ }
+function rowToReservation(row: any): Reservation {
+  return {
+    id: row.id,
+    reservationId: row.reservation_id,
+    guestName: row.guest_name,
+    guestPhone: row.guest_phone || undefined,
+    vehicleYear: row.vehicle_year,
+    vehicleModel: row.vehicle_model,
+    tripStart: row.trip_start,
+    tripEnd: row.trip_end,
+    earnings: row.earnings ? parseFloat(row.earnings) : undefined,
+    distanceIncluded: row.distance_included || undefined,
+    location: row.location || undefined,
+    status: row.status,
+    carId: row.car_id || undefined,
+    renterToken: row.renter_token,
+    messages: row.messages || [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
-export function getReservations(): Reservation[] {
-  const reservations = loadReservations();
-  // Auto-update statuses based on current time
-  const now = new Date();
-  let changed = false;
-  for (const r of reservations) {
-    if (r.status === 'cancelled') continue;
-    const start = new Date(r.tripStart);
-    const end = new Date(r.tripEnd);
-    if (r.status === 'booked' && now >= start && now <= end) {
-      r.status = 'active';
-      r.updatedAt = now.toISOString();
-      changed = true;
-    } else if ((r.status === 'booked' || r.status === 'active') && now > end) {
-      r.status = 'completed';
-      r.updatedAt = now.toISOString();
-      changed = true;
-    }
-  }
-  if (changed) saveReservations(reservations);
-  return reservations;
+/** Auto-update statuses based on current time */
+export async function refreshStatuses() {
+  const now = new Date().toISOString();
+
+  await sql`
+    UPDATE reservations SET status = 'active', updated_at = NOW()
+    WHERE status = 'booked' AND trip_start <= ${now} AND trip_end > ${now}
+  `;
+
+  // 30-min grace period after trip ends
+  await sql`
+    UPDATE reservations SET status = 'completed', updated_at = NOW()
+    WHERE status = 'active' AND trip_end + INTERVAL '30 minutes' <= ${now}
+  `;
 }
 
-export function getActiveReservations(): Reservation[] {
-  return getReservations().filter(r => r.status === 'booked' || r.status === 'active');
+export async function getReservations(): Promise<Reservation[]> {
+  await refreshStatuses();
+  const result = await sql`SELECT * FROM reservations ORDER BY trip_start DESC LIMIT 100`;
+  return result.rows.map(rowToReservation);
 }
 
-export function getReservationById(id: string): Reservation | undefined {
-  return getReservations().find(r => r.reservationId === id);
+export async function getActiveReservations(): Promise<Reservation[]> {
+  await refreshStatuses();
+  const result = await sql`
+    SELECT * FROM reservations WHERE status IN ('booked', 'active') ORDER BY trip_start ASC
+  `;
+  return result.rows.map(rowToReservation);
 }
 
-export function getReservationsByStatus(status: string): Reservation[] {
-  return getReservations().filter(r => r.status === status);
+export async function getReservationById(id: string): Promise<Reservation | undefined> {
+  const result = await sql`SELECT * FROM reservations WHERE reservation_id = ${id}`;
+  return result.rows[0] ? rowToReservation(result.rows[0]) : undefined;
 }
 
-/**
- * Match a vehicle from a Turo email to a WhatsGPS car ID.
- * Compares "Model Year" against WhatsGPS car names.
- */
-export function matchCarId(vehicleModel: string, vehicleYear: string, fleetCars: Array<{ carId: string; name: string }>): string | undefined {
+export async function getReservationByToken(token: string): Promise<Reservation | undefined> {
+  const result = await sql`SELECT * FROM reservations WHERE renter_token = ${token}`;
+  return result.rows[0] ? rowToReservation(result.rows[0]) : undefined;
+}
+
+export async function getReservationsByStatus(status: string): Promise<Reservation[]> {
+  const result = await sql`SELECT * FROM reservations WHERE status = ${status} ORDER BY trip_start DESC`;
+  return result.rows.map(rowToReservation);
+}
+
+/** Match vehicle from Turo email to WhatsGPS car ID */
+export function matchCarId(
+  vehicleModel: string,
+  vehicleYear: string,
+  fleetCars: Array<{ carId: string; name: string }>
+): string | undefined {
   const target = `${vehicleModel} ${vehicleYear}`.toLowerCase();
-  // Try exact match first
   const exact = fleetCars.find(c => c.name.toLowerCase() === target);
   if (exact) return exact.carId;
-  // Try contains match
   const partial = fleetCars.find(c =>
     c.name.toLowerCase().includes(vehicleModel.toLowerCase()) &&
     c.name.includes(vehicleYear)
@@ -114,96 +142,103 @@ export function matchCarId(vehicleModel: string, vehicleYear: string, fleetCars:
   return partial?.carId;
 }
 
-/**
- * Upsert a reservation from parsed Turo email data.
- */
-export function upsertFromEmail(email: TuroEmail, fleetCars?: Array<{ carId: string; name: string }>): Reservation {
-  const reservations = loadReservations();
+/** Upsert a reservation from a parsed Turo email */
+export async function upsertFromEmail(
+  email: TuroEmail,
+  fleetCars?: Array<{ carId: string; name: string }>
+): Promise<Reservation> {
   const now = new Date().toISOString();
-  const existing = reservations.find(r => r.reservationId === email.reservationId);
 
-  if (email.type === 'cancelled' && existing) {
-    existing.status = 'cancelled';
-    existing.updatedAt = now;
-    saveReservations(reservations);
-    return existing;
+  // Handle cancellation
+  if (email.type === 'cancelled') {
+    await sql`
+      UPDATE reservations SET status = 'cancelled', updated_at = NOW()
+      WHERE reservation_id = ${email.reservationId}
+    `;
+    const res = await getReservationById(email.reservationId);
+    return res!;
   }
 
-  if (email.type === 'message' && existing) {
-    if (email.guestMessage) {
-      // Deduplicate: only add if this exact message text doesn't already exist
-      const isDuplicate = existing.messages.some(m => m.text === email.guestMessage);
-      if (!isDuplicate) {
-        existing.messages.push({ text: email.guestMessage, timestamp: now });
+  // Handle message
+  if (email.type === 'message') {
+    const existing = await getReservationById(email.reservationId);
+    if (existing && email.guestMessage) {
+      const msgs = [...existing.messages];
+      if (!msgs.some(m => m.text === email.guestMessage)) {
+        msgs.push({ text: email.guestMessage!, timestamp: now });
+        await sql`
+          UPDATE reservations SET messages = ${JSON.stringify(msgs)}::jsonb, updated_at = NOW()
+          WHERE reservation_id = ${email.reservationId}
+        `;
       }
     }
-    existing.updatedAt = now;
-    saveReservations(reservations);
-    return existing;
+    return existing || ({} as Reservation);
   }
 
-  if (email.type === 'modified' && existing) {
-    if (email.tripStart) existing.tripStart = email.tripStart;
-    if (email.tripEnd) existing.tripEnd = email.tripEnd;
-    if (email.earnings !== undefined) existing.earnings = email.earnings;
-    if (email.vehicleModel) existing.vehicleModel = email.vehicleModel;
-    if (email.vehicleYear) existing.vehicleYear = email.vehicleYear;
-    existing.updatedAt = now;
-    // Re-match car if fleet data provided
-    if (fleetCars) {
-      existing.carId = matchCarId(existing.vehicleModel, existing.vehicleYear, fleetCars) || existing.carId;
+  // Handle modification
+  if (email.type === 'modified') {
+    const existing = await getReservationById(email.reservationId);
+    if (existing) {
+      const carId = fleetCars
+        ? matchCarId(email.vehicleModel || existing.vehicleModel, email.vehicleYear || existing.vehicleYear, fleetCars) || existing.carId
+        : existing.carId;
+
+      await sql`
+        UPDATE reservations SET
+          trip_start = COALESCE(${email.tripStart || null}::timestamptz, trip_start),
+          trip_end = COALESCE(${email.tripEnd || null}::timestamptz, trip_end),
+          earnings = COALESCE(${email.earnings ?? null}, earnings),
+          vehicle_model = COALESCE(${email.vehicleModel || null}, vehicle_model),
+          vehicle_year = COALESCE(${email.vehicleYear || null}, vehicle_year),
+          car_id = COALESCE(${carId || null}, car_id),
+          updated_at = NOW()
+        WHERE reservation_id = ${email.reservationId}
+      `;
+      return (await getReservationById(email.reservationId))!;
     }
-    saveReservations(reservations);
-    return existing;
+    // If modified but no existing record, fall through to create
   }
 
-  if (existing) {
-    // Update existing booked reservation
-    if (email.tripStart) existing.tripStart = email.tripStart;
-    if (email.tripEnd) existing.tripEnd = email.tripEnd;
-    if (email.earnings !== undefined) existing.earnings = email.earnings;
-    if (email.guestPhone) existing.guestPhone = email.guestPhone;
-    if (email.location) existing.location = email.location;
-    if (email.distanceIncluded !== undefined) existing.distanceIncluded = email.distanceIncluded;
-    if (email.vehicleModel) existing.vehicleModel = email.vehicleModel;
-    if (email.vehicleYear) existing.vehicleYear = email.vehicleYear;
-    existing.updatedAt = now;
-    if (fleetCars) {
-      existing.carId = matchCarId(existing.vehicleModel, existing.vehicleYear, fleetCars) || existing.carId;
-    }
-    saveReservations(reservations);
-    return existing;
-  }
-
-  // New reservation
+  // Upsert (new booking or update existing)
   const carId = fleetCars ? matchCarId(email.vehicleModel, email.vehicleYear, fleetCars) : undefined;
+  const token = generateToken();
+
   const currentTime = new Date();
   const tripStart = new Date(email.tripStart);
   const tripEnd = new Date(email.tripEnd);
-
-  let status: Reservation['status'] = 'booked';
+  let status: string = 'booked';
   if (currentTime >= tripStart && currentTime <= tripEnd) status = 'active';
   else if (currentTime > tripEnd) status = 'completed';
 
-  const reservation: Reservation = {
-    reservationId: email.reservationId,
-    guestName: email.guestName,
-    guestPhone: email.guestPhone,
-    vehicleYear: email.vehicleYear,
-    vehicleModel: email.vehicleModel,
-    tripStart: email.tripStart,
-    tripEnd: email.tripEnd,
-    earnings: email.earnings,
-    distanceIncluded: email.distanceIncluded,
-    location: email.location,
-    status,
-    carId,
-    messages: email.guestMessage ? [{ text: email.guestMessage, timestamp: now }] : [],
-    createdAt: now,
-    updatedAt: now,
-  };
+  const messagesJson = email.guestMessage
+    ? JSON.stringify([{ text: email.guestMessage, timestamp: now }])
+    : '[]';
 
-  reservations.push(reservation);
-  saveReservations(reservations);
-  return reservation;
+  await sql`
+    INSERT INTO reservations (
+      reservation_id, guest_name, guest_phone, vehicle_year, vehicle_model,
+      car_id, trip_start, trip_end, earnings, distance_included, location,
+      status, renter_token, messages
+    ) VALUES (
+      ${email.reservationId}, ${email.guestName}, ${email.guestPhone || null},
+      ${email.vehicleYear}, ${email.vehicleModel}, ${carId || null},
+      ${email.tripStart}, ${email.tripEnd}, ${email.earnings ?? null},
+      ${email.distanceIncluded ?? null}, ${email.location || null},
+      ${status}, ${token}, ${messagesJson}::jsonb
+    )
+    ON CONFLICT (reservation_id) DO UPDATE SET
+      guest_name = EXCLUDED.guest_name,
+      guest_phone = COALESCE(EXCLUDED.guest_phone, reservations.guest_phone),
+      trip_start = EXCLUDED.trip_start,
+      trip_end = EXCLUDED.trip_end,
+      earnings = COALESCE(EXCLUDED.earnings, reservations.earnings),
+      distance_included = COALESCE(EXCLUDED.distance_included, reservations.distance_included),
+      location = COALESCE(EXCLUDED.location, reservations.location),
+      vehicle_model = COALESCE(EXCLUDED.vehicle_model, reservations.vehicle_model),
+      vehicle_year = COALESCE(EXCLUDED.vehicle_year, reservations.vehicle_year),
+      car_id = COALESCE(EXCLUDED.car_id, reservations.car_id),
+      updated_at = NOW()
+  `;
+
+  return (await getReservationById(email.reservationId))!;
 }

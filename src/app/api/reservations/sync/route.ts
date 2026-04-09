@@ -1,21 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchTuroEmails } from '@/lib/gmail';
 import { parseTuroEmail } from '@/lib/turo-emails';
-import { upsertFromEmail, getReservations } from '@/lib/reservations';
+import { initDB, upsertFromEmail, getReservations } from '@/lib/reservations';
 import { getFleet } from '@/lib/whatsgps';
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 /**
  * GET /api/reservations/sync
- * Fetches recent Turo emails from Gmail, parses them, and upserts reservations.
+ * Fetches recent Turo emails from Gmail, parses them, and upserts into Postgres.
  * Query params:
  *   ?days=7  — how far back to look (default 7)
  *   ?max=50  — max emails to fetch (default 50)
  */
 export async function GET(req: NextRequest) {
   try {
+    // Ensure tables exist
+    await initDB();
+
     const days = parseInt(req.nextUrl.searchParams.get('days') || '7');
     const max = parseInt(req.nextUrl.searchParams.get('max') || '50');
-
     const afterDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
     // Fetch fleet for car matching
@@ -38,7 +43,7 @@ export async function GET(req: NextRequest) {
       try {
         const parsed = parseTuroEmail(email.body || email.subject);
         if (parsed) {
-          upsertFromEmail(parsed, fleetCars);
+          await upsertFromEmail(parsed, fleetCars);
           processed++;
         } else {
           skipped++;
@@ -48,7 +53,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const reservations = getReservations();
+    const reservations = await getReservations();
 
     return NextResponse.json({
       success: true,

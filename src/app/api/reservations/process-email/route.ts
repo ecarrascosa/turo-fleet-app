@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseTuroEmail, parseTuroEmails } from '@/lib/turo-emails';
-import { upsertFromEmail } from '@/lib/reservations';
+import { initDB, upsertFromEmail } from '@/lib/reservations';
 import { getFleet } from '@/lib/whatsgps';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
+    await initDB();
+
     const { emailText } = await req.json();
     if (!emailText) {
       return NextResponse.json({ error: 'emailText required' }, { status: 400 });
     }
 
-    // Get fleet for car matching
     let fleetCars: Array<{ carId: string; name: string }> = [];
     try {
       const fleet = await getFleet();
@@ -19,7 +22,6 @@ export async function POST(req: NextRequest) {
       console.warn('Could not fetch fleet for car matching:', e);
     }
 
-    // Try parsing as multiple emails first, then single
     let emails = parseTuroEmails(emailText);
     if (emails.length === 0) {
       const single = parseTuroEmail(emailText);
@@ -30,10 +32,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not parse any Turo emails from input' }, { status: 400 });
     }
 
-    const results = emails.map(email => {
-      const reservation = upsertFromEmail(email, fleetCars);
-      return { email, reservation };
-    });
+    const results = [];
+    for (const email of emails) {
+      const reservation = await upsertFromEmail(email, fleetCars);
+      results.push({ email, reservation });
+    }
 
     return NextResponse.json({
       success: true,

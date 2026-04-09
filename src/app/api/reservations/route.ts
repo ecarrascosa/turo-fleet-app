@@ -1,72 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getReservations, getActiveReservations, getReservationsByStatus, upsertFromEmail } from '@/lib/reservations';
-import { fetchTuroEmails } from '@/lib/gmail';
-import { parseTuroEmail } from '@/lib/turo-emails';
-import { getFleet } from '@/lib/whatsgps';
+import { getReservations, getActiveReservations, getReservationsByStatus, initDB } from '@/lib/reservations';
 
-let lastSyncTime = 0;
-const SYNC_COOLDOWN = 5 * 60 * 1000; // 5 minutes between syncs
-
-async function ensureSynced() {
-  const now = Date.now();
-  const existing = getReservations();
-
-  // Skip if we synced recently (within cooldown)
-  if (existing.length > 0 && (now - lastSyncTime) < SYNC_COOLDOWN) return;
-
-  // Sync from Gmail — last 7 days for regular refreshes, 30 for cold start
-  try {
-    const days = existing.length === 0 ? 60 : 14;
-    const afterDate = new Date(now - days * 24 * 60 * 60 * 1000).toISOString();
-    const emails = await fetchTuroEmails(existing.length === 0 ? 100 : 50, afterDate);
-    let fleetCars: Array<{ carId: string; name: string }> = [];
-    try {
-      const fleet = await getFleet();
-      fleetCars = fleet.map(c => ({ carId: c.carId, name: c.name }));
-    } catch {}
-
-    for (const email of emails) {
-      try {
-        const parsed = parseTuroEmail(email.body);
-        if (parsed) upsertFromEmail(parsed, fleetCars);
-      } catch {}
-    }
-    lastSyncTime = now;
-    console.log(`[Reservations] Synced: ${emails.length} emails processed`);
-  } catch (e) {
-    console.warn('[Reservations] Sync failed:', e);
-  }
-}
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  await ensureSynced();
+  try {
+    await initDB();
 
-  const status = req.nextUrl.searchParams.get('status');
+    const status = req.nextUrl.searchParams.get('status');
 
-  let reservations;
-  if (status === 'active') {
-    reservations = getActiveReservations();
-  } else if (status) {
-    reservations = getReservationsByStatus(status);
-  } else {
-    reservations = getReservations();
+    let reservations;
+    if (status === 'active') {
+      reservations = await getActiveReservations();
+    } else if (status) {
+      reservations = await getReservationsByStatus(status);
+    } else {
+      reservations = await getReservations();
+    }
+
+    // Filter out cancelled unless explicitly requested
+    if (status !== 'cancelled') {
+      reservations = reservations.filter(r => r.status !== 'cancelled');
+    }
+
+    // Sort by trip start
+    reservations.sort((a, b) => {
+      const aStart = a.tripStart ? new Date(a.tripStart).getTime() : Infinity;
+      const bStart = b.tripStart ? new Date(b.tripStart).getTime() : Infinity;
+      return aStart - bStart;
+    });
+
+    return NextResponse.json({ reservations, count: reservations.length });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
-
-  // Filter out cancelled reservations
-  reservations = reservations.filter(r => r.status !== 'cancelled');
-
-  // Sort chronologically by next upcoming event (start or end time)
-  // Reservations with no dates go to the end
-  reservations.sort((a, b) => {
-    const aStart = a.tripStart ? new Date(a.tripStart).getTime() : Infinity;
-    const aEnd = a.tripEnd ? new Date(a.tripEnd).getTime() : Infinity;
-    const bStart = b.tripStart ? new Date(b.tripStart).getTime() : Infinity;
-    const bEnd = b.tripEnd ? new Date(b.tripEnd).getTime() : Infinity;
-    // Use the earliest date for each reservation
-    const aEarliest = Math.min(aStart, aEnd);
-    const bEarliest = Math.min(bStart, bEnd);
-    return aEarliest - bEarliest;
-  });
-
-  return NextResponse.json({ reservations, count: reservations.length });
 }
