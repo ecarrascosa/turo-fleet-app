@@ -98,15 +98,15 @@ export async function refreshStatuses() {
 }
 
 export async function getReservations(): Promise<Reservation[]> {
-  await refreshStatuses();
-  const result = await sql`SELECT * FROM reservations ORDER BY trip_start DESC LIMIT 100`;
+  try { await refreshStatuses(); } catch (e) { /* ignore */ }
+  const result = await sql`SELECT * FROM reservations WHERE 1=${1} ORDER BY id DESC LIMIT 100`;
   return result.rows.map(rowToReservation);
 }
 
 export async function getActiveReservations(): Promise<Reservation[]> {
-  await refreshStatuses();
+  try { await refreshStatuses(); } catch (e) { console.warn('refreshStatuses failed:', e); }
   const result = await sql`
-    SELECT * FROM reservations WHERE status IN ('booked', 'active') ORDER BY trip_start ASC
+    SELECT * FROM reservations WHERE status IN ('booked', 'active') ORDER BY id ASC
   `;
   return result.rows.map(rowToReservation);
 }
@@ -122,7 +122,7 @@ export async function getReservationByToken(token: string): Promise<Reservation 
 }
 
 export async function getReservationsByStatus(status: string): Promise<Reservation[]> {
-  const result = await sql`SELECT * FROM reservations WHERE status = ${status} ORDER BY trip_start DESC`;
+  const result = await sql`SELECT * FROM reservations WHERE status = ${status} ORDER BY id DESC`;
   return result.rows.map(rowToReservation);
 }
 

@@ -20,11 +20,11 @@ export async function GET(req: NextRequest) {
 
     // Filter out cancelled unless explicitly requested
     if (status !== 'cancelled') {
-      reservations = reservations.filter(r => r.status !== 'cancelled');
+      reservations = reservations.filter((r: any) => r.status !== 'cancelled');
     }
 
     // Sort by trip start
-    reservations.sort((a, b) => {
+    reservations.sort((a: any, b: any) => {
       const aStart = a.tripStart ? new Date(a.tripStart).getTime() : Infinity;
       const bStart = b.tripStart ? new Date(b.tripStart).getTime() : Infinity;
       return aStart - bStart;
@@ -32,6 +32,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ reservations, count: reservations.length });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: e.message, stack: e.stack }, { status: 500 });
   }
 }

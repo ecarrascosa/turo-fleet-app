@@ -74,37 +74,36 @@ export function parseTuroEmail(text: string): TuroEmail | null {
   let vehicleYear = '';
   let vehicleModel = '';
 
-  // Pattern 1: "Make Model Year" on its own line (e.g. "  Toyota Corolla 2022")
-  const vMatch = text.match(/^\s+((?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+\d)?)\s+(20\d{2}))\s*$/m);
+  // Pattern 1 (PRIMARY): "Make Model Year" on its own line (e.g. "  Volkswagen Jetta 2013", "BMW X3 2016")
+  // Allows uppercase words (BMW), mixed case (Volkswagen), alphanumeric model names (X3, RAV4)
+  const vMatch = text.match(/^\s+((?:[A-Za-z][\w-]*(?:\s+[A-Za-z][\w-]*)*)\s+((?:19|20)\d{2}))\s*$/m);
   if (vMatch) {
-    vehicleModel = vMatch[1].replace(/\s+20\d{2}$/, '').trim();
+    vehicleModel = vMatch[1].replace(/\s+(?:19|20)\d{2}$/, '').trim();
     vehicleYear = vMatch[2];
   }
 
-  // Pattern 2: From subject/header — "trip with your [Vehicle Make Model Year]"
+  // Pattern 2: "trip with your [Vehicle] is booked" — extract ONLY up to "is booked"
   if (!vehicleModel) {
-    const subjectMatch = text.match(/trip with your\s+(.+?)\s+(20\d{2})\b/i);
+    const subjectMatch = text.match(/trip with your\s+(.+?)\s+is\s+booked/i);
     if (subjectMatch) {
-      vehicleModel = subjectMatch[1].trim();
-      vehicleYear = subjectMatch[2];
+      const vehicleStr = subjectMatch[1].trim();
+      // Try to extract year from the vehicle string
+      const yearInStr = vehicleStr.match(/\s+((?:19|20)\d{2})$/);
+      if (yearInStr) {
+        vehicleYear = yearInStr[1];
+        vehicleModel = vehicleStr.replace(/\s+(?:19|20)\d{2}$/, '').trim();
+      } else {
+        vehicleModel = vehicleStr;
+      }
     }
   }
 
-  // Pattern 3: "your [Vehicle Year Make Model]" — "your 2025 Toyota RAV4"
+  // Pattern 3: "your [Year Make Model]" — "your 2025 Toyota RAV4"
   if (!vehicleModel) {
-    const yourMatch = text.match(/your\s+(20\d{2})\s+([A-Za-z][A-Za-z\s]+?)(?:\s+is\b|\s+on\b|\s*[.!,]|\s*$)/im);
+    const yourMatch = text.match(/your\s+((?:19|20)\d{2})\s+([A-Za-z][\w\s-]+?)(?:\s+is\b|\s+on\b|\s*[.!,]|\s*$)/im);
     if (yourMatch) {
       vehicleYear = yourMatch[1];
       vehicleModel = yourMatch[2].trim();
-    }
-  }
-
-  // Pattern 4: Any line with "Make Model Year" (looser — allows lowercase, hyphens)
-  if (!vehicleModel) {
-    const looseMatch = text.match(/^\s+((?:[A-Za-z][\w-]+(?:\s+[A-Za-z][\w-]+)*)\s+(20\d{2}))\s*$/m);
-    if (looseMatch) {
-      vehicleModel = looseMatch[1].replace(/\s+20\d{2}$/, '').trim();
-      vehicleYear = looseMatch[2];
     }
   }
 
@@ -114,7 +113,7 @@ export function parseTuroEmail(text: string): TuroEmail | null {
 
   // Earnings — "You earn: $34.54" or "You'll earn $34.54"
   let earnings: number | undefined;
-  const earnMatch = text.match(/You(?:'ll)? earn:?\s*\$?([\d,.]+)/i);
+  const earnMatch = text.match(/You(?:'ll)? earn:?\s*(?:US)?\$?([\d,.]+)/i);
   if (earnMatch) earnings = parseFloat(earnMatch[1].replace(/,/g, ''));
 
   // Distance — "Mileage included: 200 miles"
@@ -173,7 +172,23 @@ function toPacificISO(year: number, month: number, day: number, hours: number, m
 }
 
 function parseTripDate(text: string, label: string): string | undefined {
-  // Pattern 1: "Trip start: 3/17/26 6:30 pm" (US format M/D/YY)
+  // Pattern 1: "Trip start: 2026-04-28 8:00 a.m." (ISO-ish with a.m./p.m.)
+  const isoPattern = new RegExp(label + ':?\\s*(\\d{4})-(\\d{2})-(\\d{2})\\s+(\\d{1,2}):(\\d{2})\\s*([ap]\\.?m\\.?)', 'i');
+  const isoMatch = text.match(isoPattern);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1]);
+    const month = parseInt(isoMatch[2]);
+    const day = parseInt(isoMatch[3]);
+    let hours = parseInt(isoMatch[4]);
+    const minutes = parseInt(isoMatch[5]);
+    const ampm = isoMatch[6].replace(/\./g, '').toUpperCase();
+    if (ampm === 'PM' && hours !== 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+
+    return toPacificISO(year, month, day, hours, minutes);
+  }
+
+  // Pattern 2: "Trip start: 3/17/26 6:30 pm" (US format M/D/YY)
   const usPattern = new RegExp(label + ':?\\s*(\\d{1,2})/(\\d{1,2})/(\\d{2,4})\\s+(\\d{1,2}:\\d{2}\\s*(?:AM|PM|am|pm))', 'i');
   const usMatch = text.match(usPattern);
   if (usMatch) {
@@ -191,12 +206,10 @@ function parseTripDate(text: string, label: string): string | undefined {
     if (ampm === 'PM' && hours !== 12) hours += 12;
     if (ampm === 'AM' && hours === 12) hours = 0;
 
-    // Turo dates are in Pacific time — construct ISO string with explicit offset
-    const pacificISO = toPacificISO(year, month, day, hours, minutes);
-    return pacificISO;
+    return toPacificISO(year, month, day, hours, minutes);
   }
 
-  // Pattern 2: "Trip start: 07/04/2026 07:00" (DD/MM/YYYY HH:MM - international format)
+  // Pattern 3: "Trip start: 07/04/2026 07:00" (DD/MM/YYYY HH:MM - international format)
   const intlPattern = new RegExp(label + ':?\\s*(\\d{2})/(\\d{2})/(\\d{4})\\s+(\\d{1,2}):(\\d{2})', 'i');
   const intlMatch = text.match(intlPattern);
   if (intlMatch) {
@@ -206,8 +219,7 @@ function parseTripDate(text: string, label: string): string | undefined {
     const hours = parseInt(intlMatch[4]);
     const minutes = parseInt(intlMatch[5]);
 
-    const pacificISO = toPacificISO(year, month, day, hours, minutes);
-    return pacificISO;
+    return toPacificISO(year, month, day, hours, minutes);
   }
 
   return undefined;
