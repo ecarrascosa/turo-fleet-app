@@ -5,7 +5,7 @@ import { initDB, upsertFromEmail } from '@/lib/reservations';
 import { getFleet } from '@/lib/whatsgps';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 10; // Hobby plan limit
+export const maxDuration = 60; // Pro plan
 
 export async function GET(req: NextRequest) {
   // Verify cron secret

@@ -5,7 +5,7 @@ import { initDB, upsertFromEmail, getReservations } from '@/lib/reservations';
 import { getFleet } from '@/lib/whatsgps';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 10; // Vercel Hobby plan limit
+export const maxDuration = 60; // Pro plan
 
 /**
  * GET /api/reservations/sync
