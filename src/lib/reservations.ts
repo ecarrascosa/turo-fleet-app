@@ -229,8 +229,6 @@ export async function upsertFromEmail(
     ON CONFLICT (reservation_id) DO UPDATE SET
       guest_name = EXCLUDED.guest_name,
       guest_phone = COALESCE(EXCLUDED.guest_phone, reservations.guest_phone),
-      trip_start = EXCLUDED.trip_start,
-      trip_end = EXCLUDED.trip_end,
       earnings = COALESCE(EXCLUDED.earnings, reservations.earnings),
       distance_included = COALESCE(EXCLUDED.distance_included, reservations.distance_included),
       location = COALESCE(EXCLUDED.location, reservations.location),
