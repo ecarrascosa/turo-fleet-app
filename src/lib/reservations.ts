@@ -175,28 +175,27 @@ export async function upsertFromEmail(
     return existing || ({} as Reservation);
   }
 
-  // Handle modification
+  // Handle modification — always try UPDATE first (don't rely on SELECT to find existing)
   if (email.type === 'modified') {
-    const existing = await getReservationById(email.reservationId);
-    if (existing) {
-      const carId = fleetCars
-        ? matchCarId(email.vehicleModel || existing.vehicleModel, email.vehicleYear || existing.vehicleYear, fleetCars) || existing.carId
-        : existing.carId;
+    const carId = fleetCars && email.vehicleModel
+      ? matchCarId(email.vehicleModel, email.vehicleYear, fleetCars)
+      : undefined;
 
-      await sql`
-        UPDATE reservations SET
-          trip_start = COALESCE(${email.tripStart || null}::timestamptz, trip_start),
-          trip_end = COALESCE(${email.tripEnd || null}::timestamptz, trip_end),
-          earnings = COALESCE(${email.earnings ?? null}, earnings),
-          vehicle_model = COALESCE(${email.vehicleModel || null}, vehicle_model),
-          vehicle_year = COALESCE(${email.vehicleYear || null}, vehicle_year),
-          car_id = COALESCE(${carId || null}, car_id),
-          updated_at = NOW()
-        WHERE reservation_id = ${email.reservationId}
-      `;
+    const updateResult = await sql`
+      UPDATE reservations SET
+        trip_start = COALESCE(${email.tripStart || null}::timestamptz, trip_start),
+        trip_end = COALESCE(${email.tripEnd || null}::timestamptz, trip_end),
+        earnings = COALESCE(${email.earnings ?? null}, earnings),
+        vehicle_model = COALESCE(${email.vehicleModel || null}, vehicle_model),
+        vehicle_year = COALESCE(${email.vehicleYear || null}, vehicle_year),
+        car_id = COALESCE(${carId || null}, car_id),
+        updated_at = NOW()
+      WHERE reservation_id = ${email.reservationId}
+    `;
+    if (updateResult.rowCount && updateResult.rowCount > 0) {
       return (await getReservationById(email.reservationId))!;
     }
-    // If modified but no existing record, fall through to create
+    // If no existing record, fall through to create
   }
 
   // Upsert (new booking or update existing)
