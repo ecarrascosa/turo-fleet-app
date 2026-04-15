@@ -8,11 +8,18 @@ const REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN!;
 
 let cachedAccessToken = '';
 let tokenExpiry = 0;
+let cachedClientId = '';
 
 async function getAccessToken(): Promise<string> {
+  // Invalidate cache if credentials changed (e.g. after env var update)
+  if (cachedClientId && cachedClientId !== CLIENT_ID) {
+    cachedAccessToken = '';
+    tokenExpiry = 0;
+  }
   if (cachedAccessToken && Date.now() < tokenExpiry - 60000) {
     return cachedAccessToken;
   }
+  cachedClientId = CLIENT_ID;
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -74,6 +81,7 @@ export async function fetchTuroEmails(maxResults = 20, afterDate?: string): Prom
     const listRes = await gmailApi(
       `messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`
     );
+    console.log(`[gmail] query="${query.substring(30)}" results=${listRes.messages?.length || 0} error=${listRes.error?.message || 'none'}`);
     if (listRes.messages) {
       for (const msg of listRes.messages) {
         if (!seenIds.has(msg.id)) {
@@ -99,6 +107,9 @@ export async function fetchTuroEmails(maxResults = 20, afterDate?: string): Prom
 
     messages.push({ id: msg.id, subject, from, date, body });
   }
+
+  // Sort oldest first so modifications apply in correct order
+  messages.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return messages;
 }

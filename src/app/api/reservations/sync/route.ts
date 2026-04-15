@@ -33,7 +33,14 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch emails from Gmail
-    const emails = await fetchTuroEmails(max, afterDate);
+    let emails;
+    let gmailDebug: any = {};
+    try {
+      emails = await fetchTuroEmails(max, afterDate);
+      gmailDebug = { afterDate, max, emailCount: emails.length };
+    } catch (gmailErr: any) {
+      return NextResponse.json({ error: 'Gmail fetch failed: ' + gmailErr.message, stack: gmailErr.stack, afterDate }, { status: 500 });
+    }
 
     let processed = 0;
     let skipped = 0;
@@ -62,6 +69,7 @@ export async function GET(req: NextRequest) {
       skipped,
       errors: errors.length > 0 ? errors : undefined,
       totalReservations: reservations.length,
+      gmailDebug,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
