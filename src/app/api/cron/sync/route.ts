@@ -26,9 +26,9 @@ export async function GET(req: NextRequest) {
       console.warn('Could not fetch fleet:', e);
     }
 
-    // Look back 2 days, max 30 emails per cron run
-    const afterDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
-    const emails = await fetchTuroEmails(30, afterDate);
+    // Look back 2 hours, max 20 emails per cron run (runs every minute)
+    const afterDate = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const emails = await fetchTuroEmails(20, afterDate);
 
     let processed = 0;
     let skipped = 0;
