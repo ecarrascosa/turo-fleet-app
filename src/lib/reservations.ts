@@ -100,7 +100,7 @@ export async function refreshStatuses() {
 export async function getReservations(): Promise<Reservation[]> {
   try { await refreshStatuses(); } catch (e) { /* ignore */ }
   const now = new Date().toISOString();
-  const result = await sql`SELECT * FROM reservations WHERE updated_at <= ${now}::timestamptz OR TRUE ORDER BY id DESC LIMIT 100`;
+  const result = await sql`SELECT * FROM reservations WHERE updated_at <= ${now}::timestamptz OR TRUE ORDER BY id DESC LIMIT 500`;
   return result.rows.map(rowToReservation);
 }
 
