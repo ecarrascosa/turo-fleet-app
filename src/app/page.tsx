@@ -610,7 +610,7 @@ export default function Home() {
                               const car = ev.car;
                               const plate = car?.plate || '';
                               const photo = plate ? getCarPhoto(plate) : null;
-                              const icon = car ? getCarIcon(car.name) : null;
+                              const icon = car ? getCarIcon(car.name) : getCarIcon(`${res.vehicleModel || ''} ${res.vehicleYear || ''}`);
                               const vehicleName = car?.name || `${res.vehicleModel || ''} ${res.vehicleYear || ''}`.trim() || 'Unknown Vehicle';
                               const address = res.location || '';
 
