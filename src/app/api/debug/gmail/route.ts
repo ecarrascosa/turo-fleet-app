@@ -44,6 +44,10 @@ export async function GET() {
     return NextResponse.json({
       envOk: true,
       tokenOk: true,
+      tokenType: tokenData.token_type,
+      tokenScope: tokenData.scope,
+      expiresIn: tokenData.expires_in,
+      accessTokenPrefix: accessToken?.substring(0, 20),
       query,
       gmailResponse: listData,
     });
