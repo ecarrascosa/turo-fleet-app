@@ -36,7 +36,7 @@ export function parseTuroEmail(text: string): TuroEmail | null {
   let type: TuroEmail['type'];
   if (/trip is booked/i.test(text)) {
     type = 'booked';
-  } else if (/has cancelled their trip/i.test(text) || /Turo has cancelled/i.test(text)) {
+  } else if (/has cancelled their trip/i.test(text) || /Turo (?:has )?cancelled/i.test(text)) {
     type = 'cancelled';
   } else if (/has changed their trip/i.test(text)) {
     type = 'modified';
@@ -56,7 +56,7 @@ export function parseTuroEmail(text: string): TuroEmail | null {
   const guestPatterns = [
     /(\w+)'s trip is booked/i,
     /(\w+) has cancelled/i,
-    /cancelled (\w+)['']s trip/i,
+    /cancelled (\w+)[''']s trip/i,
     /(\w+) has changed/i,
     /(\w+) has sent you/i,
     /booked by (\w+)/i,
