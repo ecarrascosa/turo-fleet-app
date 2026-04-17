@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
       listStatus: listRes.status,
       refreshPrefix: process.env.GMAIL_REFRESH_TOKEN?.substring(0, 20),
       cidPrefix: process.env.GMAIL_CLIENT_ID?.substring(0, 20),
+      region: process.env.VERCEL_REGION || 'unknown',
     });
   }
 

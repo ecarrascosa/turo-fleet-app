@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { fetchTuroEmails } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const hasClientId = !!process.env.GMAIL_CLIENT_ID;
     const hasSecret = !!process.env.GMAIL_CLIENT_SECRET;
@@ -54,6 +54,7 @@ export async function GET() {
       cidPrefix: process.env.GMAIL_CLIENT_ID?.substring(0, 20),
       query,
       gmailResponse: listData,
+      region: process.env.VERCEL_REGION || 'unknown',
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message, stack: e.stack?.split('\n').slice(0, 3) }, { status: 500 });
