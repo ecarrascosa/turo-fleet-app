@@ -19,13 +19,32 @@ export async function GET(req: NextRequest) {
   const carId = req.nextUrl.searchParams.get('carId') || '2862785';
   const token = await getToken();
 
-  // Get order list for this car
-  const res = await fetch(`${BASE_URL}/device-service/remoteControl/getOrderList`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Token: token, clientType: 'pc', appVersion: '1.0.0', 'Accept-Language': 'en' },
-    body: JSON.stringify({ carId }),
-  });
-  const data = await res.json();
+  // Try multiple endpoints to discover commands
+  const endpoints = [
+    '/device-service/remoteControl/getOrderParameterList',
+    '/device-service/remoteControl/getOrderList', 
+    '/device-service/remoteControl/getSupportOrders',
+  ];
+  
+  const results: any = {};
+  for (const ep of endpoints) {
+    // Try with just carId, and also with known orderIds
+    for (const body of [
+      { carId },
+      { carId, orderId: '7169971628812562432' }, // door lock
+      { carId, orderId: '7161621819198304256' }, // engine
+    ]) {
+      const res = await fetch(`${BASE_URL}${ep}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Token: token, clientType: 'pc', appVersion: '1.0.0', 'Accept-Language': 'en' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success !== false && data.status !== 404) {
+        results[`${ep}|${JSON.stringify(body)}`] = data;
+      }
+    }
+  }
 
-  return NextResponse.json(data);
+  return NextResponse.json(results);
 }
