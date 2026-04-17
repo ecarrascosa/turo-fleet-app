@@ -47,7 +47,11 @@ export async function GET() {
       tokenType: tokenData.token_type,
       tokenScope: tokenData.scope,
       expiresIn: tokenData.expires_in,
-      accessTokenPrefix: accessToken?.substring(0, 20),
+      accessTokenPrefix: accessToken?.substring(0, 30),
+      tokenLen: accessToken?.length,
+      listStatus: listRes.status,
+      refreshPrefix: process.env.GMAIL_REFRESH_TOKEN?.substring(0, 20),
+      cidPrefix: process.env.GMAIL_CLIENT_ID?.substring(0, 20),
       query,
       gmailResponse: listData,
     });

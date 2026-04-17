@@ -34,7 +34,10 @@ export async function GET(req: NextRequest) {
       query: q, count: 0, messages: [], 
       raw: listData, 
       tokenPrefix: token?.substring(0, 30),
+      tokenLen: token?.length,
       listStatus: listRes.status,
+      refreshPrefix: process.env.GMAIL_REFRESH_TOKEN?.substring(0, 20),
+      cidPrefix: process.env.GMAIL_CLIENT_ID?.substring(0, 20),
     });
   }
 
