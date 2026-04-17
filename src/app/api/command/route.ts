@@ -10,6 +10,27 @@ export async function POST(req: NextRequest) {
   try {
     const { action, carId } = await req.json();
 
+    // Individual commands
+    if (action === 'lock') {
+      const result = await sendCommand(carId, COMMANDS.DOOR.orderId, COMMANDS.DOOR.lock);
+      return NextResponse.json({ success: true, result });
+    }
+    if (action === 'unlock') {
+      const result = await sendCommand(carId, COMMANDS.DOOR.orderId, COMMANDS.DOOR.unlock);
+      return NextResponse.json({ success: true, result });
+    }
+    if (action === 'kill') {
+      const passwd = process.env.WHATSGPS_KILL_PASSWORD || '';
+      const result = await sendCommand(carId, COMMANDS.ENGINE.orderId, COMMANDS.ENGINE.cut, passwd);
+      return NextResponse.json({ success: true, result });
+    }
+    if (action === 'unkill') {
+      const passwd = process.env.WHATSGPS_KILL_PASSWORD || '';
+      const result = await sendCommand(carId, COMMANDS.ENGINE.orderId, COMMANDS.ENGINE.restore, passwd);
+      return NextResponse.json({ success: true, result });
+    }
+
+    // Combo commands
     if (action === 'lock-kill') {
       const result = await lockAndKill(carId);
       return NextResponse.json({ success: true, result });
