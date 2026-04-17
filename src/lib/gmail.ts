@@ -44,6 +44,7 @@ async function gmailApi(path: string): Promise<any> {
   const token = await getAccessToken();
   const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`, {
     headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
   });
   return res.json();
 }

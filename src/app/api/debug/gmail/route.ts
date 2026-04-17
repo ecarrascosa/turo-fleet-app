@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     const query = 'from:noreply@mail.turo.com';
     const listRes = await fetch(
       `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=5`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
+      { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' }
     );
     const listData = await listRes.json();
 
