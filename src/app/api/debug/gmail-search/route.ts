@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-async function getToken() {
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+export async function GET(req: NextRequest) {
+  const q = req.nextUrl.searchParams.get('q') || 'from:noreply@mail.turo.com';
+  const max = req.nextUrl.searchParams.get('max') || '10';
+
+  // Use exact same token approach as debug/gmail (which works)
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -13,15 +17,12 @@ async function getToken() {
       grant_type: 'refresh_token',
     }),
   });
-  const data = await res.json();
-  return data.access_token;
-}
+  const tokenData = await tokenRes.json();
+  if (tokenData.error) {
+    return NextResponse.json({ error: 'Token refresh failed', detail: tokenData });
+  }
+  const token = tokenData.access_token;
 
-export async function GET(req: NextRequest) {
-  const q = req.nextUrl.searchParams.get('q') || 'from:noreply@mail.turo.com';
-  const max = req.nextUrl.searchParams.get('max') || '10';
-
-  const token = await getToken();
   const listRes = await fetch(
     `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(q)}&maxResults=${max}`,
     { headers: { Authorization: `Bearer ${token}` } }
@@ -29,7 +30,12 @@ export async function GET(req: NextRequest) {
   const listData = await listRes.json();
 
   if (!listData.messages?.length) {
-    return NextResponse.json({ query: q, count: 0, messages: [], raw: listData, tokenPrefix: token?.substring(0, 20) });
+    return NextResponse.json({ 
+      query: q, count: 0, messages: [], 
+      raw: listData, 
+      tokenPrefix: token?.substring(0, 30),
+      listStatus: listRes.status,
+    });
   }
 
   const results = [];
@@ -44,7 +50,6 @@ export async function GET(req: NextRequest) {
       id: msg.id,
       subject: headers.find((h: any) => h.name === 'Subject')?.value,
       date: headers.find((h: any) => h.name === 'Date')?.value,
-      labels: d.labelIds,
     });
   }
 
