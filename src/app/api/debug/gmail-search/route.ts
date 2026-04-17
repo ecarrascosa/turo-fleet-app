@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const listData = await listRes.json();
 
   if (!listData.messages?.length) {
-    return NextResponse.json({ query: q, count: 0, messages: [] });
+    return NextResponse.json({ query: q, count: 0, messages: [], raw: listData, tokenPrefix: token?.substring(0, 20) });
   }
 
   const results = [];
