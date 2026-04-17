@@ -29,14 +29,16 @@ function computeView(tripStart: string, tripEnd: string): ViewState {
 }
 
 function formatCountdown(ms: number): string {
-  if (ms <= 0) return '0m';
+  if (ms <= 0) return '0s';
   const d = Math.floor(ms / 86400000);
   const h = Math.floor((ms % 86400000) / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
   const parts: string[] = [];
   if (d > 0) parts.push(`${d}d`);
   if (h > 0) parts.push(`${h}h`);
-  if (m > 0 || parts.length === 0) parts.push(`${m}m`);
+  if (m > 0) parts.push(`${m}m`);
+  parts.push(`${s}s`);
   return parts.join(' ');
 }
 
@@ -64,7 +66,7 @@ export default function GuestTripPage() {
   useEffect(() => { fetchTrip(); const i = setInterval(fetchTrip, 30000); return () => clearInterval(i); }, [fetchTrip]);
 
   // Tick every 30s for countdown + state transitions
-  useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
+  useEffect(() => { const i = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(i); }, []);
 
   const sendCmd = async (action: 'lock' | 'unlock') => {
     setCmdLoading(action);
