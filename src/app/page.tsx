@@ -29,6 +29,7 @@ interface Reservation {
   location?: string;
   status: 'booked' | 'active' | 'completed' | 'cancelled';
   carId?: string;
+  renterToken?: string;
   messages: Array<{ text: string; timestamp: string }>;
 }
 
@@ -650,6 +651,23 @@ export default function Home() {
                                       <span className="text-sm text-gray-600">
                                         {res.guestName} <span className="text-gray-400">#{res.reservationId}</span>
                                       </span>
+                                      {res.renterToken && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const url = `${window.location.origin}/trip/${res.renterToken}`;
+                                            navigator.clipboard.writeText(url).then(() => {
+                                              showToast('📋 Guest link copied!');
+                                            }).catch(() => {
+                                              // Fallback for older browsers
+                                              prompt('Copy this link:', url);
+                                            });
+                                          }}
+                                          className="ml-1 text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-0.5 rounded hover:bg-blue-50 transition-colors"
+                                        >
+                                          🔗 Copy Link
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
 
