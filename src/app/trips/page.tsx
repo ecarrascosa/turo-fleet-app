@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 
 interface Reservation {
@@ -13,6 +13,8 @@ interface Reservation {
   carId?: string;
   renterToken?: string;
 }
+
+type Tab = 'upcoming' | 'ongoing' | 'history';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/', icon: '📊' },
@@ -75,10 +77,30 @@ function CommandButton({ icon, color, borderColor, onClick, loading, title }: {
   );
 }
 
+function DateTag({ date, color }: { date: string; color: 'green' | 'red' | 'gray' }) {
+  const colorClasses = {
+    green: 'bg-green-100 text-green-700 border-green-200',
+    red: 'bg-red-100 text-red-700 border-red-200',
+    gray: 'bg-gray-100 text-gray-600 border-gray-200',
+  };
+  const formatted = (() => {
+    try {
+      return new Date(date).toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      });
+    } catch { return date; }
+  })();
+  return (
+    <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border ${colorClasses[color]}`}>
+      {formatted}
+    </span>
+  );
+}
+
 export default function TripsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'active' | 'all'>('active');
+  const [tab, setTab] = useState<Tab>('upcoming');
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -128,22 +150,36 @@ export default function TripsPage() {
     });
   };
 
-  const filtered = tab === 'active'
-    ? reservations.filter(r => r.status === 'booked' || r.status === 'active')
-    : reservations;
+  const { upcoming, ongoing, history } = useMemo(() => {
+    const now = new Date();
+    const up: Reservation[] = [];
+    const on: Reservation[] = [];
+    const hist: Reservation[] = [];
 
-  const formatDate = (d: string) => {
-    try {
-      return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-    } catch { return d; }
-  };
+    for (const r of reservations) {
+      if (r.status === 'cancelled') {
+        hist.push(r);
+        continue;
+      }
+      const start = new Date(r.tripStart);
+      const end = new Date(r.tripEnd);
+      if (now < start) up.push(r);
+      else if (now >= start && now <= end) on.push(r);
+      else hist.push(r);
+    }
 
-  const statusColors: Record<string, string> = {
-    booked: 'bg-blue-100 text-blue-700',
-    active: 'bg-green-100 text-green-700',
-    completed: 'bg-gray-100 text-gray-600',
-    cancelled: 'bg-red-100 text-red-600',
-  };
+    // Upcoming: soonest first
+    up.sort((a, b) => new Date(a.tripStart).getTime() - new Date(b.tripStart).getTime());
+    // Ongoing: ending soonest first
+    on.sort((a, b) => new Date(a.tripEnd).getTime() - new Date(b.tripEnd).getTime());
+    // History: most recent first
+    hist.sort((a, b) => new Date(b.tripEnd).getTime() - new Date(a.tripEnd).getTime());
+
+    return { upcoming: up, ongoing: on, history: hist };
+  }, [reservations]);
+
+  const filtered = tab === 'upcoming' ? upcoming : tab === 'ongoing' ? ongoing : history;
+  const counts = { upcoming: upcoming.length, ongoing: ongoing.length, history: history.length };
 
   return (
     <div className="h-full flex">
@@ -187,24 +223,38 @@ export default function TripsPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Trips</h1>
-            <div className="flex bg-gray-200 rounded-lg p-0.5">
+          </div>
+
+          {/* Tabs */}
+          <div className="flex bg-gray-200 rounded-lg p-0.5 mb-6">
+            {(['upcoming', 'ongoing', 'history'] as Tab[]).map(t => (
               <button
-                onClick={() => setTab('active')}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition ${tab === 'active' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
-              >Active</button>
-              <button
-                onClick={() => setTab('all')}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition ${tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
-              >All</button>
-            </div>
+                key={t}
+                onClick={() => setTab(t)}
+                className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition flex items-center justify-center gap-2 ${
+                  tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+                <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${
+                  tab === t ? 'bg-gray-100 text-gray-700' : 'bg-gray-300/50 text-gray-500'
+                }`}>
+                  {counts[t]}
+                </span>
+              </button>
+            ))}
           </div>
 
           {loading ? (
             <div className="text-gray-400 animate-pulse py-16 text-center">Loading trips...</div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-16">
-              <div className="text-4xl mb-3">📭</div>
-              <p className="text-gray-500">No trips found</p>
+              <div className="text-4xl mb-3">
+                {tab === 'upcoming' ? '🗓️' : tab === 'ongoing' ? '🚗' : '📭'}
+              </div>
+              <p className="text-gray-500">
+                {tab === 'upcoming' ? 'No upcoming trips' : tab === 'ongoing' ? 'No ongoing trips' : 'No trip history'}
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -216,16 +266,38 @@ export default function TripsPage() {
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-lg">👤</span>
                         <h3 className="font-bold text-gray-900">{res.guestName}</h3>
-                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusColors[res.status] || 'bg-gray-100 text-gray-500'}`}>
-                          {res.status}
-                        </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-1">
+                      <p className="text-sm text-gray-600 mb-2">
                         🚗 {res.vehicleYear} {res.vehicleModel}
                       </p>
-                      <p className="text-xs text-gray-400">
-                        {formatDate(res.tripStart)} → {formatDate(res.tripEnd)}
-                      </p>
+
+                      {/* Date tags based on tab */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {tab === 'upcoming' && (
+                          <>
+                            <span className="text-xs text-gray-400">Starts</span>
+                            <DateTag date={res.tripStart} color="green" />
+                          </>
+                        )}
+                        {tab === 'ongoing' && (
+                          <>
+                            <span className="text-xs text-gray-400">Ends</span>
+                            <DateTag date={res.tripEnd} color="red" />
+                          </>
+                        )}
+                        {tab === 'history' && (
+                          <>
+                            <DateTag date={res.tripStart} color="gray" />
+                            <span className="text-xs text-gray-400">→</span>
+                            <DateTag date={res.tripEnd} color="gray" />
+                            {res.status === 'cancelled' && (
+                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                                cancelled
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
 
                       {/* Guest link */}
                       {res.renterToken && (
