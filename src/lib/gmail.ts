@@ -19,7 +19,10 @@ let tokenExpiry = 0;
 function getServiceAccountKey(): ServiceAccountKey {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
   if (!raw) throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_KEY env var');
-  return JSON.parse(raw);
+  const parsed = JSON.parse(raw);
+  // Fix private key newlines that may get mangled in env vars
+  parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+  return parsed;
 }
 
 function createJWT(sa: ServiceAccountKey): string {

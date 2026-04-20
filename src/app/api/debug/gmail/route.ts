@@ -16,6 +16,11 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Check key parsing
+    const key = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY!);
+    const keyHasNewlines = key.private_key?.includes('\n');
+    const keyHasLiteralBackslashN = key.private_key?.includes('\\n');
+
     // Try fetching 1 email to test end-to-end
     const emails = await fetchTuroEmails(1);
 
@@ -23,6 +28,10 @@ export async function GET(req: NextRequest) {
       ok: true,
       authMethod: 'service_account',
       userEmail: process.env.GMAIL_USER_EMAIL,
+      serviceAccount: key.client_email,
+      keyParsed: !!key.private_key,
+      keyHasNewlines,
+      keyHasLiteralBackslashN,
       emailsFetched: emails.length,
       latestSubject: emails[0]?.subject || null,
       latestDate: emails[0]?.date || null,
