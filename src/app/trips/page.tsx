@@ -325,30 +325,16 @@ export default function TripsPage() {
                     {/* Right: command buttons */}
                     {res.carId && (
                       <div className="flex gap-2 sm:flex-col sm:gap-2">
-                        <div className="flex gap-2">
-                          <CommandButton
-                            icon={<LockOpen />} color="text-green-600" borderColor="border-green-300 hover:border-green-500"
-                            onClick={() => sendCommand('unlock', res.carId!)}
-                            loading={!!actionLoading[`${res.carId}-unlock`]} title="Unlock"
-                          />
-                          <CommandButton
-                            icon={<EngineOn />} color="text-green-600" borderColor="border-green-300 hover:border-green-500"
-                            onClick={() => sendCommand('unkill', res.carId!)}
-                            loading={!!actionLoading[`${res.carId}-unkill`]} title="Enable Engine"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <CommandButton
-                            icon={<LockClosed />} color="text-amber-600" borderColor="border-amber-300 hover:border-amber-500"
-                            onClick={() => sendCommand('lock', res.carId!)}
-                            loading={!!actionLoading[`${res.carId}-lock`]} title="Lock"
-                          />
-                          <CommandButton
-                            icon={<EngineOff />} color="text-red-500" borderColor="border-red-300 hover:border-red-500"
-                            onClick={() => sendCommand('kill', res.carId!)}
-                            loading={!!actionLoading[`${res.carId}-kill`]} title="Kill Engine"
-                          />
-                        </div>
+                        <CommandButton
+                          icon={<LockOpen />} color="text-green-600" borderColor="border-green-300 hover:border-green-500"
+                          onClick={() => sendCommand('unlock-restore', res.carId!)}
+                          loading={!!actionLoading[`${res.carId}-unlock-restore`]} title="Unlock + Enable Engine"
+                        />
+                        <CommandButton
+                          icon={<LockClosed />} color="text-amber-600" borderColor="border-amber-300 hover:border-amber-500"
+                          onClick={() => sendCommand('lock-kill', res.carId!)}
+                          loading={!!actionLoading[`${res.carId}-lock-kill`]} title="Lock + Kill Engine"
+                        />
                       </div>
                     )}
                   </div>
