@@ -194,7 +194,7 @@ export default function Home() {
   const lockAllIdle = async () => {
     const whatsGPSCars = cars.filter(c => c.source !== 'bouncie');
     if (!whatsGPSCars.length) return;
-    if (!confirm(`Lock + kill engine on ${whatsGPSCars.length} WhatsGPS vehicles?`)) return;
+    if (!confirm(`Lock ${whatsGPSCars.length} WhatsGPS vehicles?`)) return;
     setLockAllLoading(true);
     let ok = 0, fail = 0;
     for (const car of whatsGPSCars) {
