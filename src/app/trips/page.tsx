@@ -258,8 +258,36 @@ export default function TripsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filtered.map(res => (
-                <div key={res.reservationId} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+              {(() => {
+                let lastDateLabel = '';
+                return filtered.map(res => {
+                  // Group by date based on tab
+                  const groupDate = tab === 'upcoming' ? res.tripStart
+                    : tab === 'ongoing' ? res.tripEnd
+                    : res.tripStart;
+                  const d = new Date(groupDate);
+                  const today = new Date();
+                  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+                  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+
+                  let dateLabel: string;
+                  if (d.toDateString() === today.toDateString()) dateLabel = 'Today';
+                  else if (d.toDateString() === tomorrow.toDateString()) dateLabel = 'Tomorrow';
+                  else if (d.toDateString() === yesterday.toDateString()) dateLabel = 'Yesterday';
+                  else dateLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+                  const showHeader = dateLabel !== lastDateLabel;
+                  lastDateLabel = dateLabel;
+
+                  return (
+                    <div key={res.reservationId}>
+                      {showHeader && (
+                        <div className="flex items-center gap-3 pt-2 pb-1">
+                          <h2 className="text-sm font-bold text-gray-700 whitespace-nowrap">{dateLabel}</h2>
+                          <div className="flex-1 h-px bg-gray-200" />
+                        </div>
+                      )}
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition-shadow">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     {/* Left info */}
                     <div className="flex-1 min-w-0">
@@ -338,8 +366,11 @@ export default function TripsPage() {
                       </div>
                     )}
                   </div>
-                </div>
-              ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           )}
         </div>
