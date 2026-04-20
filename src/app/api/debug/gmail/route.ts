@@ -5,56 +5,27 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    const hasClientId = !!process.env.GMAIL_CLIENT_ID;
-    const hasSecret = !!process.env.GMAIL_CLIENT_SECRET;
-    const hasRefresh = !!process.env.GMAIL_REFRESH_TOKEN;
+    const hasSA = !!process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+    const hasUser = !!process.env.GMAIL_USER_EMAIL;
 
-    if (!hasClientId || !hasSecret || !hasRefresh) {
+    if (!hasSA || !hasUser) {
       return NextResponse.json({
-        error: 'Missing Gmail env vars',
-        hasClientId, hasSecret, hasRefresh,
+        error: 'Missing env vars',
+        hasServiceAccountKey: hasSA,
+        hasUserEmail: hasUser,
       });
     }
 
-    // Test token refresh
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: process.env.GMAIL_CLIENT_ID!,
-        client_secret: process.env.GMAIL_CLIENT_SECRET!,
-        refresh_token: process.env.GMAIL_REFRESH_TOKEN!,
-        grant_type: 'refresh_token',
-      }),
-    });
-    const tokenData = await tokenRes.json();
-    if (tokenData.error) {
-      return NextResponse.json({ error: 'Token refresh failed', detail: tokenData });
-    }
-
-    // Test raw Gmail search
-    const accessToken = tokenData.access_token;
-    const query = 'from:noreply@mail.turo.com';
-    const listRes = await fetch(
-      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=5`,
-      { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' }
-    );
-    const listData = await listRes.json();
+    // Try fetching 1 email to test end-to-end
+    const emails = await fetchTuroEmails(1);
 
     return NextResponse.json({
-      envOk: true,
-      tokenOk: true,
-      tokenType: tokenData.token_type,
-      tokenScope: tokenData.scope,
-      expiresIn: tokenData.expires_in,
-      accessTokenPrefix: accessToken?.substring(0, 30),
-      tokenLen: accessToken?.length,
-      listStatus: listRes.status,
-      refreshPrefix: process.env.GMAIL_REFRESH_TOKEN?.substring(0, 20),
-      cidPrefix: process.env.GMAIL_CLIENT_ID?.substring(0, 20),
-      query,
-      gmailResponse: listData,
-      region: process.env.VERCEL_REGION || 'unknown',
+      ok: true,
+      authMethod: 'service_account',
+      userEmail: process.env.GMAIL_USER_EMAIL,
+      emailsFetched: emails.length,
+      latestSubject: emails[0]?.subject || null,
+      latestDate: emails[0]?.date || null,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message, stack: e.stack?.split('\n').slice(0, 3) }, { status: 500 });

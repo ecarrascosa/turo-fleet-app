@@ -1,39 +1,70 @@
 /**
- * Gmail API integration for fetching Turo emails.
+ * Gmail API integration using Service Account with domain-wide delegation.
+ * No more expiring refresh tokens!
  */
+import * as crypto from 'crypto';
 
-const CLIENT_ID = process.env.GMAIL_CLIENT_ID!;
-const CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET!;
-const REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN!;
+const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
+const GMAIL_USER = process.env.GMAIL_USER_EMAIL!; // email to impersonate
+
+interface ServiceAccountKey {
+  client_email: string;
+  private_key: string;
+  token_uri: string;
+}
 
 let cachedAccessToken = '';
 let tokenExpiry = 0;
-let cachedClientId = '';
+
+function getServiceAccountKey(): ServiceAccountKey {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!raw) throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_KEY env var');
+  return JSON.parse(raw);
+}
+
+function createJWT(sa: ServiceAccountKey): string {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const payload = {
+    iss: sa.client_email,
+    sub: GMAIL_USER,
+    scope: SCOPES.join(' '),
+    aud: sa.token_uri,
+    iat: now,
+    exp: now + 3600,
+  };
+
+  const b64 = (obj: any) => Buffer.from(JSON.stringify(obj)).toString('base64url');
+  const unsigned = `${b64(header)}.${b64(payload)}`;
+
+  const sign = crypto.createSign('RSA-SHA256');
+  sign.update(unsigned);
+  const signature = sign.sign(sa.private_key, 'base64url');
+
+  return `${unsigned}.${signature}`;
+}
 
 async function getAccessToken(): Promise<string> {
-  // Invalidate cache if credentials changed (e.g. after env var update)
-  if (cachedClientId && cachedClientId !== CLIENT_ID) {
-    cachedAccessToken = '';
-    tokenExpiry = 0;
-  }
   if (cachedAccessToken && Date.now() < tokenExpiry - 60000) {
     return cachedAccessToken;
   }
-  cachedClientId = CLIENT_ID;
 
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+  const sa = getServiceAccountKey();
+  const jwt = createJWT(sa);
+
+  const res = await fetch(sa.token_uri, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      refresh_token: REFRESH_TOKEN,
-      grant_type: 'refresh_token',
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
     }),
   });
 
   const data = await res.json();
-  if (data.error) throw new Error(`Gmail token refresh failed: ${data.error}`);
+  if (data.error) {
+    throw new Error(`Service account token error: ${data.error} - ${data.error_description}`);
+  }
 
   cachedAccessToken = data.access_token;
   tokenExpiry = Date.now() + data.expires_in * 1000;
@@ -59,8 +90,6 @@ export interface GmailMessage {
 
 /**
  * Fetch Turo notification emails from Gmail.
- * @param maxResults Number of emails to fetch (default 20)
- * @param afterDate Only fetch emails after this date (ISO string)
  */
 export async function fetchTuroEmails(maxResults = 20, afterDate?: string): Promise<GmailMessage[]> {
   const dateFilter = afterDate ? (() => {
@@ -68,7 +97,6 @@ export async function fetchTuroEmails(maxResults = 20, afterDate?: string): Prom
     return ` after:${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
   })() : '';
 
-  // Fetch booking/modification emails first (they have the dates), then messages
   const queries = [
     `from:noreply@mail.turo.com subject:"is booked"${dateFilter}`,
     `from:noreply@mail.turo.com subject:"has cancelled"${dateFilter}`,
@@ -102,58 +130,37 @@ export async function fetchTuroEmails(maxResults = 20, afterDate?: string): Prom
     const subject = headers.find((h: any) => h.name === 'Subject')?.value || '';
     const from = headers.find((h: any) => h.name === 'From')?.value || '';
     const date = headers.find((h: any) => h.name === 'Date')?.value || '';
-
-    // Extract body text
     const body = extractBody(detail.payload);
-
     messages.push({ id: msg.id, subject, from, date, body });
   }
 
-  // Sort oldest first so modifications apply in correct order
   messages.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
   return messages;
 }
 
-/**
- * Extract plain text body from Gmail message payload.
- */
 function extractBody(payload: any): string {
   if (!payload) return '';
-
-  // Direct body
   if (payload.body?.data) {
     return Buffer.from(payload.body.data, 'base64url').toString('utf-8');
   }
-
-  // Multipart — prefer text/plain, fall back to text/html
   if (payload.parts) {
-    // Try text/plain first
     const textPart = payload.parts.find((p: any) => p.mimeType === 'text/plain');
     if (textPart?.body?.data) {
       return Buffer.from(textPart.body.data, 'base64url').toString('utf-8');
     }
-
-    // Try text/html and strip tags
     const htmlPart = payload.parts.find((p: any) => p.mimeType === 'text/html');
     if (htmlPart?.body?.data) {
       const html = Buffer.from(htmlPart.body.data, 'base64url').toString('utf-8');
       return stripHtml(html);
     }
-
-    // Recurse into nested multipart
     for (const part of payload.parts) {
       const body = extractBody(part);
       if (body) return body;
     }
   }
-
   return '';
 }
 
-/**
- * Basic HTML to text conversion.
- */
 function stripHtml(html: string): string {
   return html
     .replace(/<br\s*\/?>/gi, '\n')
