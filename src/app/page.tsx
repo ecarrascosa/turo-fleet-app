@@ -245,9 +245,16 @@ export default function Home() {
         })}
       </nav>
 
+      {/* Mobile top header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-slate-900 flex items-center px-4 z-50">
+        <button onClick={() => setView('dashboard')} className="text-xl font-bold tracking-tight text-white">
+          ⚡ <span className="text-cyan-400">Fleet</span>Pro
+        </button>
+      </div>
+
       {view === 'map' ? (
         /* Full-screen Map view */
-        <div className="flex-1 relative">
+        <div className="flex-1 relative pt-14 lg:pt-0">
           <Suspense fallback={<div className="flex items-center justify-center h-full w-full text-gray-400 animate-pulse">Loading map...</div>}>
             <FleetMap
               cars={filteredCars}
@@ -261,7 +268,7 @@ export default function Home() {
       ) : (
         <>
           {/* Center: Vehicle List */}
-          <div className="w-full lg:w-[420px] xl:w-[460px] flex flex-col border-r border-gray-200 bg-white shrink-0">
+          <div className="w-full lg:w-[420px] xl:w-[460px] flex flex-col border-r border-gray-200 bg-white shrink-0 pt-14 lg:pt-0">
             {/* Header */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
               <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
