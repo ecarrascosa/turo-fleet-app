@@ -15,12 +15,12 @@ interface Car {
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/', icon: '📊' },
-  { label: 'Fleet', href: '/', icon: '🚗', view: 'fleet' as const },
+  { label: 'Map', href: '/', icon: '🗺️', view: 'map' as const },
   { label: 'Trips', href: '/trips', icon: '📅' },
   { label: 'Service', href: '/service', icon: '🔧' },
 ];
 
-function Sidebar({ currentPath }: { currentPath: string }) {
+function Sidebar({ currentPath, activeView, onViewChange }: { currentPath: string; activeView: string; onViewChange: (view: 'dashboard' | 'map') => void }) {
   return (
     <aside className="hidden lg:flex w-[220px] bg-slate-900 text-white flex-col shrink-0">
       <div className="h-16 flex items-center px-5 border-b border-slate-800">
@@ -28,7 +28,24 @@ function Sidebar({ currentPath }: { currentPath: string }) {
       </div>
       <nav className="flex-1 py-4">
         {NAV_ITEMS.map(item => {
-          const active = item.href === currentPath;
+          const isView = !!item.view;
+          const active = isView ? activeView === (item.view || 'dashboard') : item.href === currentPath;
+          if (isView) {
+            return (
+              <button
+                key={item.label}
+                onClick={() => onViewChange(item.view as 'map')}
+                className={`w-full flex items-center gap-3 px-5 py-3 text-sm font-medium transition-colors ${
+                  active
+                    ? 'bg-cyan-500/10 text-cyan-400 border-r-2 border-cyan-400'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <span className="text-lg">{item.icon}</span>
+                {item.label}
+              </button>
+            );
+          }
           return (
             <Link
               key={item.label}
@@ -120,6 +137,7 @@ export default function Home() {
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [view, setView] = useState<'dashboard' | 'map'>('dashboard');
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -180,125 +198,154 @@ export default function Home() {
 
   return (
     <div className="h-full flex">
-      <Sidebar currentPath="/" />
+      <Sidebar currentPath="/" activeView={view} onViewChange={setView} />
 
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-14 flex items-center justify-around z-50 safe-bottom">
-        {NAV_ITEMS.map(item => (
-          <Link key={item.label} href={item.href} className="flex flex-col items-center gap-0.5 px-3 py-1 text-cyan-600">
-            <span className="text-lg">{item.icon}</span>
-            <span className="text-[10px] font-medium">{item.label}</span>
-          </Link>
-        ))}
+        {NAV_ITEMS.map(item => {
+          const isView = !!item.view;
+          const active = isView ? view === item.view : (!item.view && view === 'dashboard' && item.href === '/');
+          if (isView) {
+            return (
+              <button key={item.label} onClick={() => setView(item.view as 'map')} className={`flex flex-col items-center gap-0.5 px-3 py-1 ${active ? 'text-cyan-600' : 'text-gray-400'}`}>
+                <span className="text-lg">{item.icon}</span>
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </button>
+            );
+          }
+          return (
+            <Link key={item.label} href={item.href} onClick={() => item.href === '/' && setView('dashboard')} className={`flex flex-col items-center gap-0.5 px-3 py-1 ${active ? 'text-cyan-600' : 'text-gray-400'}`}>
+              <span className="text-lg">{item.icon}</span>
+              <span className="text-[10px] font-medium">{item.label}</span>
+            </Link>
+          );
+        })}
       </nav>
 
-      {/* Center: Vehicle List */}
-      <div className="w-full lg:w-[420px] xl:w-[460px] flex flex-col border-r border-gray-200 bg-white shrink-0">
-        {/* Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
-          <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
-          <span className="text-xs text-gray-400">{cars.length} vehicles · {cars.filter(c => c.online).length} online</span>
-        </div>
-
-        {/* Search */}
-        <div className="px-4 py-3 border-b border-gray-100">
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search vehicles..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-400 transition"
+      {view === 'map' ? (
+        /* Full-screen Map view */
+        <div className="flex-1 relative">
+          <Suspense fallback={<div className="flex items-center justify-center h-full w-full text-gray-400 animate-pulse">Loading map...</div>}>
+            <FleetMap
+              cars={filteredCars}
+              rentedPlates={rentedPlates}
+              onCommand={sendCommand}
+              selectedCarId={null}
+              onSelectCar={() => {}}
             />
-          </div>
+          </Suspense>
         </div>
+      ) : (
+        <>
+          {/* Center: Vehicle List */}
+          <div className="w-full lg:w-[420px] xl:w-[460px] flex flex-col border-r border-gray-200 bg-white shrink-0">
+            {/* Header */}
+            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
+              <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
+              <span className="text-xs text-gray-400">{cars.length} vehicles · {cars.filter(c => c.online).length} online</span>
+            </div>
 
-        {/* Vehicle Cards */}
-        <div className="flex-1 overflow-y-auto pb-16 lg:pb-0">
-          {filteredCars.map(car => {
-            const icon = getCarIcon(car.name);
-            const isWhatsGPS = car.source !== 'bouncie';
-            return (
-              <div key={car.carId} className="px-4 py-4 border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
-                      style={{ backgroundColor: icon.color + '18' }}
-                    >
-                      {icon.emoji}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 text-sm leading-tight">{car.name}</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">Plate #{car.plate}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <StatusBadge acc={car.acc} online={car.online} />
-                    <span className={`text-[10px] font-medium ${car.online ? 'text-green-600' : 'text-gray-400'}`}>
-                      {car.online ? '● GPS Online' : '○ GPS Offline'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Command buttons — only for WhatsGPS cars */}
-                {isWhatsGPS && (
-                  <div className="flex gap-2 mt-3">
-                    <CommandButton
-                      icon={<LockOpen />}
-                      color="text-green-600"
-                      borderColor="border-green-300 hover:border-green-500"
-                      onClick={() => sendCommand('unlock', car.carId)}
-                      loading={!!actionLoading[`${car.carId}-unlock`]}
-                      title="Unlock"
-                    />
-                    <CommandButton
-                      icon={<EngineOn />}
-                      color="text-green-600"
-                      borderColor="border-green-300 hover:border-green-500"
-                      onClick={() => sendCommand('unkill', car.carId)}
-                      loading={!!actionLoading[`${car.carId}-unkill`]}
-                      title="Enable Engine"
-                    />
-                    <CommandButton
-                      icon={<LockClosed />}
-                      color="text-amber-600"
-                      borderColor="border-amber-300 hover:border-amber-500"
-                      onClick={() => sendCommand('lock', car.carId)}
-                      loading={!!actionLoading[`${car.carId}-lock`]}
-                      title="Lock"
-                    />
-                    <CommandButton
-                      icon={<EngineOff />}
-                      color="text-red-500"
-                      borderColor="border-red-300 hover:border-red-500"
-                      onClick={() => sendCommand('kill', car.carId)}
-                      loading={!!actionLoading[`${car.carId}-kill`]}
-                      title="Kill Engine"
-                    />
-                  </div>
-                )}
+            {/* Search */}
+            <div className="px-4 py-3 border-b border-gray-100">
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search vehicles..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-400 transition"
+                />
               </div>
-            );
-          })}
-        </div>
-      </div>
+            </div>
 
-      {/* Right: Map */}
-      <div className="hidden lg:flex flex-1 relative">
-        <Suspense fallback={<div className="flex items-center justify-center h-full w-full text-gray-400 animate-pulse">Loading map...</div>}>
-          <FleetMap
-            cars={filteredCars}
-            rentedPlates={rentedPlates}
-            onCommand={sendCommand}
-            selectedCarId={null}
-            onSelectCar={() => {}}
-          />
-        </Suspense>
-      </div>
+            {/* Vehicle Cards */}
+            <div className="flex-1 overflow-y-auto pb-16 lg:pb-0">
+              {filteredCars.map(car => {
+                const icon = getCarIcon(car.name);
+                const isWhatsGPS = car.source !== 'bouncie';
+                return (
+                  <div key={car.carId} className="px-4 py-4 border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
+                          style={{ backgroundColor: icon.color + '18' }}
+                        >
+                          {icon.emoji}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-sm leading-tight">{car.name}</h3>
+                          <p className="text-xs text-gray-400 mt-0.5">Plate #{car.plate}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <StatusBadge acc={car.acc} online={car.online} />
+                        <span className={`text-[10px] font-medium ${car.online ? 'text-green-600' : 'text-gray-400'}`}>
+                          {car.online ? '● GPS Online' : '○ GPS Offline'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Command buttons — only for WhatsGPS cars */}
+                    {isWhatsGPS && (
+                      <div className="flex gap-2 mt-3">
+                        <CommandButton
+                          icon={<LockOpen />}
+                          color="text-green-600"
+                          borderColor="border-green-300 hover:border-green-500"
+                          onClick={() => sendCommand('unlock', car.carId)}
+                          loading={!!actionLoading[`${car.carId}-unlock`]}
+                          title="Unlock"
+                        />
+                        <CommandButton
+                          icon={<EngineOn />}
+                          color="text-green-600"
+                          borderColor="border-green-300 hover:border-green-500"
+                          onClick={() => sendCommand('unkill', car.carId)}
+                          loading={!!actionLoading[`${car.carId}-unkill`]}
+                          title="Enable Engine"
+                        />
+                        <CommandButton
+                          icon={<LockClosed />}
+                          color="text-amber-600"
+                          borderColor="border-amber-300 hover:border-amber-500"
+                          onClick={() => sendCommand('lock', car.carId)}
+                          loading={!!actionLoading[`${car.carId}-lock`]}
+                          title="Lock"
+                        />
+                        <CommandButton
+                          icon={<EngineOff />}
+                          color="text-red-500"
+                          borderColor="border-red-300 hover:border-red-500"
+                          onClick={() => sendCommand('kill', car.carId)}
+                          loading={!!actionLoading[`${car.carId}-kill`]}
+                          title="Kill Engine"
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right: Map (desktop only in dashboard view) */}
+          <div className="hidden lg:flex flex-1 relative">
+            <Suspense fallback={<div className="flex items-center justify-center h-full w-full text-gray-400 animate-pulse">Loading map...</div>}>
+              <FleetMap
+                cars={filteredCars}
+                rentedPlates={rentedPlates}
+                onCommand={sendCommand}
+                selectedCarId={null}
+                onSelectCar={() => {}}
+              />
+            </Suspense>
+          </div>
+        </>
+      )}
 
       {/* Toast */}
       {toast && (
