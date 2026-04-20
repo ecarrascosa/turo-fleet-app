@@ -325,38 +325,22 @@ export default function Home() {
                     {/* Command buttons — only for WhatsGPS cars */}
                     {isWhatsGPS && (
                       <div className="flex gap-2 mt-3">
-                        <CommandButton
-                          icon={<LockOpen />}
-                          color="text-green-600"
-                          borderColor="border-green-300 hover:border-green-500"
-                          onClick={() => sendCommand('unlock', car.carId)}
-                          loading={!!actionLoading[`${car.carId}-unlock`]}
-                          title="Unlock"
-                        />
-                        <CommandButton
-                          icon={<EngineOn />}
-                          color="text-green-600"
-                          borderColor="border-green-300 hover:border-green-500"
-                          onClick={() => sendCommand('unkill', car.carId)}
-                          loading={!!actionLoading[`${car.carId}-unkill`]}
-                          title="Enable Engine"
-                        />
-                        <CommandButton
-                          icon={<LockClosed />}
-                          color="text-amber-600"
-                          borderColor="border-amber-300 hover:border-amber-500"
-                          onClick={() => sendCommand('lock', car.carId)}
-                          loading={!!actionLoading[`${car.carId}-lock`]}
-                          title="Lock"
-                        />
-                        <CommandButton
-                          icon={<EngineOff />}
-                          color="text-red-500"
-                          borderColor="border-red-300 hover:border-red-500"
-                          onClick={() => sendCommand('kill', car.carId)}
-                          loading={!!actionLoading[`${car.carId}-kill`]}
-                          title="Kill Engine"
-                        />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); sendCommand('unlock-restore', car.carId); }}
+                          disabled={!!actionLoading[`${car.carId}-unlock-restore`]}
+                          title="Unlock + Enable Engine"
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-green-300 hover:border-green-500 text-green-600 bg-transparent hover:bg-green-50 transition-all font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {actionLoading[`${car.carId}-unlock-restore`] ? <span className="animate-spin">⏳</span> : <><LockOpen /><span>Unlock</span></>}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); sendCommand('lock-kill', car.carId); }}
+                          disabled={!!actionLoading[`${car.carId}-lock-kill`]}
+                          title="Lock + Kill Engine"
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-amber-300 hover:border-amber-500 text-amber-600 bg-transparent hover:bg-amber-50 transition-all font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {actionLoading[`${car.carId}-lock-kill`] ? <span className="animate-spin">⏳</span> : <><LockClosed /><span>Lock</span></>}
+                        </button>
                       </div>
                     )}
                   </div>
