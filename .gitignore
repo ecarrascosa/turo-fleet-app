@@ -33,3 +33,5 @@ get-token.js
 .env.vercel
 Screenshot*
 *.png
+.env.prod-check
+.env.vercel-check

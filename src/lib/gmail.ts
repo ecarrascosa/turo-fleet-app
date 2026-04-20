@@ -17,12 +17,22 @@ let cachedAccessToken = '';
 let tokenExpiry = 0;
 
 function getServiceAccountKey(): ServiceAccountKey {
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  let raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
   if (!raw) throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_KEY env var');
-  const parsed = JSON.parse(raw);
-  // Fix private key newlines that may get mangled in env vars
-  parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
-  return parsed;
+  // Vercel may store multiline JSON with literal newlines inside string values
+  // which breaks JSON.parse. Replace actual newlines inside the string with \\n first.
+  // Strategy: try parsing as-is, if it fails, escape newlines within string values.
+  try {
+    const parsed = JSON.parse(raw);
+    parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+    return parsed;
+  } catch {
+    // Escape literal newlines that aren't preceded by a backslash
+    raw = raw.replace(/\n/g, '\\n');
+    const parsed = JSON.parse(raw);
+    parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+    return parsed;
+  }
 }
 
 function createJWT(sa: ServiceAccountKey): string {
