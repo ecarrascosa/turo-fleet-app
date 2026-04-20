@@ -140,6 +140,7 @@ export default function Home() {
   const [view, setView] = useState<'dashboard' | 'map'>('dashboard');
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [lockAllLoading, setLockAllLoading] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -188,6 +189,28 @@ export default function Home() {
       showToast(`❌ ${e.message}`, 'error');
     }
     setActionLoading(p => ({ ...p, [key]: false }));
+  };
+
+  const lockAllIdle = async () => {
+    const whatsGPSCars = cars.filter(c => c.source !== 'bouncie');
+    if (!whatsGPSCars.length) return;
+    if (!confirm(`Lock + kill engine on ${whatsGPSCars.length} WhatsGPS vehicles?`)) return;
+    setLockAllLoading(true);
+    let ok = 0, fail = 0;
+    for (const car of whatsGPSCars) {
+      try {
+        const res = await fetch('/api/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'lock', carId: car.carId }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) ok++; else fail++;
+      } catch { fail++; }
+    }
+    showToast(`🔒 Lock All: ${ok} succeeded, ${fail} failed`);
+    setLockAllLoading(false);
+    setTimeout(fetchData, 3000);
   };
 
   if (loading) return (
@@ -242,7 +265,17 @@ export default function Home() {
             {/* Header */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
               <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
-              <span className="text-xs text-gray-400">{cars.length} vehicles · {cars.filter(c => c.online).length} online</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-400">{cars.length} vehicles · {cars.filter(c => c.online).length} online</span>
+                <button
+                  onClick={lockAllIdle}
+                  disabled={lockAllLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {lockAllLoading ? <span className="animate-spin">⏳</span> : '🔒'}
+                  Lock All
+                </button>
+              </div>
             </div>
 
             {/* Search */}
