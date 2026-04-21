@@ -21,9 +21,9 @@ type ViewState = 'upcoming' | 'ongoing' | 'history';
 
 function computeView(tripStart: string, tripEnd: string): ViewState {
   const now = Date.now();
-  const start = new Date(tripStart).getTime();
-  const graceEnd = new Date(tripEnd).getTime() + 30 * 60 * 1000;
-  if (now < start) return 'upcoming';
+  const earlyAccess = new Date(tripStart).getTime() - 15 * 60 * 1000; // 15 min before start
+  const graceEnd = new Date(tripEnd).getTime() + 15 * 60 * 1000; // 15 min after end
+  if (now < earlyAccess) return 'upcoming';
   if (now <= graceEnd) return 'ongoing';
   return 'history';
 }
@@ -114,7 +114,7 @@ export default function GuestTripPage() {
 
   const startMs = new Date(reservation.tripStart).getTime();
   const endMs = new Date(reservation.tripEnd).getTime();
-  const graceEndMs = endMs + 30 * 60 * 1000;
+  const graceEndMs = endMs + 15 * 60 * 1000;
   const isGrace = now > endMs && now <= graceEndMs;
 
   // ─── HISTORY ───
