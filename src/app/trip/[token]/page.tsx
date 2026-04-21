@@ -170,27 +170,11 @@ export default function GuestTripPage() {
           {car.plate && <p className="text-gray-500 text-sm mt-0.5">Plate: {car.plate}</p>}
         </div>
 
-        {/* Navigate */}
-        {hasLocation && (
-          <div className="mx-4 mt-4">
-            <a href={mapsUrl!} target="_blank" rel="noopener noreferrer"
-              className="block w-full text-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3.5 rounded-xl transition-colors text-base">
-              📍 Navigate to Car
-            </a>
-          </div>
-        )}
-
         {/* No controls message */}
         <div className="mx-4 mt-4 text-center text-gray-400 text-sm py-4 border border-gray-200 rounded-xl">
           Lock &amp; unlock controls will be available when your trip starts
         </div>
 
-        {/* Contact */}
-        <div className="mx-4 mt-4 mb-8">
-          <a href="tel:+13234632867" className="block w-full text-center border border-gray-300 hover:bg-gray-50 active:bg-gray-100 text-gray-700 font-medium py-3.5 rounded-xl transition-colors">
-            📞 Contact Host
-          </a>
-        </div>
       </div>
     );
   }
@@ -253,13 +237,6 @@ export default function GuestTripPage() {
           </a>
         </div>
       )}
-
-      {/* Contact */}
-      <div className="mx-4 mt-4 mb-8">
-        <a href="tel:+13234632867" className="block w-full text-center border border-gray-300 hover:bg-gray-50 active:bg-gray-100 text-gray-700 font-medium py-3.5 rounded-xl transition-colors">
-          📞 Contact Host
-        </a>
-      </div>
 
       {/* Toast */}
       {toast && (
