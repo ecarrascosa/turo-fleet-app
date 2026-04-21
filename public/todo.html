@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Laurel Heights — Tomorrow's Tasks</title>
+<title>Today's Tasks — Monday, April 21</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -17,13 +17,6 @@
   }
   h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
   .subtitle { color: #64748b; font-size: 0.875rem; margin-bottom: 24px; }
-  .alert {
-    background: #fef3c7; border: 1px solid #f59e0b; border-radius: 12px;
-    padding: 14px 16px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 10px;
-  }
-  .alert-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
-  .alert-text { font-size: 0.85rem; color: #92400e; line-height: 1.4; }
-  .alert-text strong { color: #78350f; }
   .section { margin-bottom: 24px; }
   .section-title {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
@@ -53,20 +46,14 @@
     font-weight: 500; display: inline-flex; align-items: center; gap: 4px;
   }
   .tag-clean { background: #dbeafe; color: #1d4ed8; }
-  .tag-fuel { background: #fce7f3; color: #be185d; }
-  .tag-photo { background: #ede9fe; color: #7c3aed; }
-  .tag-move { background: #d1fae5; color: #065f46; }
+  .tag-checkin { background: #d1fae5; color: #065f46; }
+  .tag-checkout { background: #ede9fe; color: #7c3aed; }
+  .tag-service { background: #fce7f3; color: #be185d; }
   .tag-time { background: #fef3c7; color: #92400e; }
   .task-note {
     margin-top: 8px; font-size: 0.8rem; color: #64748b; line-height: 1.4;
     padding-left: 2px;
   }
-  .app-link {
-    display: block; text-align: center; background: #1e293b; color: white;
-    padding: 14px; border-radius: 12px; font-weight: 600; font-size: 0.95rem;
-    text-decoration: none; margin-top: 20px; transition: background 0.2s;
-  }
-  .app-link:active { background: #334155; }
   .progress {
     background: #e2e8f0; border-radius: 99px; height: 6px; margin-bottom: 20px; overflow: hidden;
   }
@@ -76,85 +63,33 @@
   .progress-text {
     font-size: 0.8rem; color: #94a3b8; text-align: right; margin-bottom: 6px;
   }
+  .app-link {
+    display: block; text-align: center; background: #1e293b; color: white;
+    padding: 14px; border-radius: 12px; font-weight: 600; font-size: 0.95rem;
+    text-decoration: none; margin-top: 20px; transition: background 0.2s;
+  }
+  .app-link:active { background: #334155; }
 </style>
 </head>
 <body>
 
-<h1>📋 Laurel Heights Tasks</h1>
-<p class="subtitle">Thursday, April 16 · For Eduardo's helper</p>
+<h1>📋 Today's Tasks</h1>
+<p class="subtitle">Monday, April 21</p>
 
 <div class="progress-text"><span id="done-count">0</span> of <span id="total-count">0</span> done</div>
 <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
 
-<div class="alert">
-  <span class="alert-icon">⚠️</span>
-  <div class="alert-text">
-    <strong>Street cleaning today 11 AM – 1 PM</strong> (please double-check signs!)<br>
-    Move the Kia Sportage & 2016 Elantra BEFORE 11 AM.
-  </div>
-</div>
-
 <div class="section">
-  <div class="section-title">🚨 Do First</div>
+  <div class="section-title">🧽 Clean — Check-in</div>
 
   <div class="task" onclick="toggle(this)">
     <div class="task-header">
       <div class="checkbox"></div>
       <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Toyota Corolla Hybrid 2025</span></div>
-        <div class="task-details">
-          <span class="tag tag-photo">📸 Check-in photos</span>
-        </div>
-        <div class="task-note">Different area — do this before heading to Laurel Heights.</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="section">
-  <div class="section-title">🅿️ Before 11 AM — Street Cleaning</div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚙</span><span class="task-title">Kia Sportage 2014</span></div>
-        <div class="task-details">
-          <span class="tag tag-move">🅿️ Move</span>
-          <span class="tag tag-time">⏰ Before 11 AM</span>
-        </div>
-        <div class="task-note">Move to a spot with no 2-hour parking permit if possible. Street cleaning 11–1.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Hyundai Elantra 2016</span></div>
-        <div class="task-details">
-          <span class="tag tag-move">🅿️ Move</span>
-          <span class="tag tag-photo">📸 Check-in photos</span>
-          <span class="tag tag-time">⏰ Before 11 AM</span>
-        </div>
-        <div class="task-note">Move to a spot with no 2-hour parking permit if possible. Street cleaning 11–1.</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="section">
-  <div class="section-title">🧹 Clean, Photo & Fuel</div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚙</span><span class="task-title">Kia Sportage 2014</span></div>
+        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Gray Hyundai Elantra</span></div>
         <div class="task-details">
           <span class="tag tag-clean">🧽 Clean</span>
-          <span class="tag tag-photo">📸 Check-in photos</span>
+          <span class="tag tag-checkin">📥 Check-in</span>
         </div>
       </div>
     </div>
@@ -164,12 +99,10 @@
     <div class="task-header">
       <div class="checkbox"></div>
       <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Hyundai Elantra 2013</span></div>
+        <div class="task-car"><span class="car-emoji">🚙</span><span class="task-title">Kia Sportage</span></div>
         <div class="task-details">
           <span class="tag tag-clean">🧽 Clean</span>
-          <span class="tag tag-fuel">⛽ Refuel</span>
-          <span class="tag tag-photo">📸 Check-in photos</span>
-          <span class="tag tag-time">⏰ After 11 AM</span>
+          <span class="tag tag-checkin">📥 Check-in</span>
         </div>
       </div>
     </div>
@@ -179,10 +112,11 @@
     <div class="task-header">
       <div class="checkbox"></div>
       <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Volkswagen Jetta 2016 (White)</span></div>
+        <div class="task-car"><span class="car-emoji">🚙</span><span class="task-title">Toyota RAV4</span></div>
         <div class="task-details">
           <span class="tag tag-clean">🧽 Clean</span>
-          <span class="tag tag-photo">📸 Check-in photos</span>
+          <span class="tag tag-checkin">📥 Check-in</span>
+          <span class="tag tag-time">⏰ After 1 PM</span>
         </div>
       </div>
     </div>
@@ -192,10 +126,10 @@
     <div class="task-header">
       <div class="checkbox"></div>
       <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🏎️</span><span class="task-title">Audi A4</span></div>
+        <div class="task-car"><span class="car-emoji">🏎️</span><span class="task-title">BMW 3 Series</span></div>
         <div class="task-details">
           <span class="tag tag-clean">🧽 Clean</span>
-          <span class="tag tag-fuel">⛽ Refuel</span>
+          <span class="tag tag-checkin">📥 Check-in</span>
         </div>
       </div>
     </div>
@@ -205,36 +139,10 @@
     <div class="task-header">
       <div class="checkbox"></div>
       <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Volkswagen Jetta (Silver)</span></div>
+        <div class="task-car"><span class="car-emoji">🚙</span><span class="task-title">VW Tiguan</span></div>
         <div class="task-details">
           <span class="tag tag-clean">🧽 Clean</span>
-          <span class="tag tag-photo">📸 Check-in photos</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚙</span><span class="task-title">Jeep Wrangler</span></div>
-        <div class="task-details">
-          <span class="tag tag-clean">🧽 Clean</span>
-          <span class="tag tag-photo">📸 Photos</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Hyundai Elantra (Gray)</span></div>
-        <div class="task-details">
-          <span class="tag tag-clean">🧽 Clean</span>
-          <span class="tag tag-photo">📸 Photos</span>
+          <span class="tag tag-checkin">📥 Check-in</span>
         </div>
       </div>
     </div>
@@ -242,17 +150,17 @@
 </div>
 
 <div class="section">
-  <div class="section-title">🅿️ End of Day — Friday Street Cleaning Prep</div>
+  <div class="section-title">🧽 Clean — Checkout</div>
 
   <div class="task" onclick="toggle(this)">
     <div class="task-header">
       <div class="checkbox"></div>
       <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Volkswagen Jetta 2016 (White)</span></div>
+        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Blue VW Jetta</span></div>
         <div class="task-details">
-          <span class="tag tag-move">🅿️ Move</span>
+          <span class="tag tag-clean">🧽 Clean</span>
+          <span class="tag tag-checkout">📤 Checkout</span>
         </div>
-        <div class="task-note">Move to a spot with no 2-hour permit. Friday street cleaning where it's currently parked.</div>
       </div>
     </div>
   </div>
@@ -261,11 +169,91 @@
     <div class="task-header">
       <div class="checkbox"></div>
       <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Kia Forte 2023</span></div>
+        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">White VW Jetta</span></div>
         <div class="task-details">
-          <span class="tag tag-move">🅿️ Move</span>
+          <span class="tag tag-clean">🧽 Clean</span>
+          <span class="tag tag-checkout">📤 Checkout</span>
         </div>
-        <div class="task-note">Move to a spot with no 2-hour permit. Friday street cleaning where it's currently parked.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="task" onclick="toggle(this)">
+    <div class="task-header">
+      <div class="checkbox"></div>
+      <div class="task-content">
+        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Gray VW Jetta</span></div>
+        <div class="task-details">
+          <span class="tag tag-clean">🧽 Clean</span>
+          <span class="tag tag-checkout">📤 Checkout</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="task" onclick="toggle(this)">
+    <div class="task-header">
+      <div class="checkbox"></div>
+      <div class="task-content">
+        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Kia Forte</span></div>
+        <div class="task-details">
+          <span class="tag tag-clean">🧽 Clean</span>
+          <span class="tag tag-checkout">📤 Checkout</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="task" onclick="toggle(this)">
+    <div class="task-header">
+      <div class="checkbox"></div>
+      <div class="task-content">
+        <div class="task-car"><span class="car-emoji">🏎️</span><span class="task-title">Audi</span></div>
+        <div class="task-details">
+          <span class="tag tag-clean">🧽 Clean</span>
+          <span class="tag tag-checkout">📤 Checkout</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="task" onclick="toggle(this)">
+    <div class="task-header">
+      <div class="checkbox"></div>
+      <div class="task-content">
+        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Hyundai Veloster</span></div>
+        <div class="task-details">
+          <span class="tag tag-clean">🧽 Clean</span>
+          <span class="tag tag-checkout">📤 Checkout</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">🔧 Service</div>
+
+  <div class="task" onclick="toggle(this)">
+    <div class="task-header">
+      <div class="checkbox"></div>
+      <div class="task-content">
+        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Toyota Camry</span></div>
+        <div class="task-details">
+          <span class="tag tag-service">🔧 Toyota dealer service</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="task" onclick="toggle(this)">
+    <div class="task-header">
+      <div class="checkbox"></div>
+      <div class="task-content">
+        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Toyota Corolla Hybrid</span></div>
+        <div class="task-details">
+          <span class="tag tag-service">🔧 Toyota dealer service</span>
+        </div>
       </div>
     </div>
   </div>
@@ -291,12 +279,12 @@ function updateProgress() {
 
 function save() {
   const states = [...document.querySelectorAll('.task')].map(t => t.classList.contains('done'));
-  localStorage.setItem('todo-laurel', JSON.stringify(states));
+  localStorage.setItem('todo-apr21', JSON.stringify(states));
 }
 
 function load() {
   try {
-    const states = JSON.parse(localStorage.getItem('todo-laurel') || '[]');
+    const states = JSON.parse(localStorage.getItem('todo-apr21') || '[]');
     document.querySelectorAll('.task').forEach((t, i) => {
       if (states[i]) t.classList.add('done');
     });
