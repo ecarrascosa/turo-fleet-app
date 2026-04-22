@@ -212,31 +212,20 @@ export default function TripsPage() {
       const endedToday = end >= todayStart && end < todayEnd;
 
       if (now <= end || startedToday || endedToday) {
-        // If both start and end are on the same group date, create two entries
-        if (startedToday && endedToday) {
-          entries.push({ reservation: r, eventType: 'pickup', eventTime: start });
-          entries.push({ reservation: r, eventType: 'dropoff', eventTime: end });
-        } else if (startedToday) {
-          entries.push({ reservation: r, eventType: 'pickup', eventTime: start });
-        } else if (endedToday) {
-          entries.push({ reservation: r, eventType: 'dropoff', eventTime: end });
-        } else {
-          // Spans today or future — single entry
-          const eventTime = now >= start ? end : start;
-          entries.push({ reservation: r, eventType: now >= start ? 'dropoff' : 'pickup', eventTime });
-        }
+        // Always create a pickup entry (for start date)
+        entries.push({ reservation: r, eventType: 'pickup', eventTime: start });
+        // Always create a dropoff entry too
+        entries.push({ reservation: r, eventType: 'dropoff', eventTime: end });
       } else {
         p.push(r);
       }
     }
 
-    // Sort entries by group date, then event time
+    // Sort entries by date (day), then by event time within each day
     entries.sort((a, b) => {
-      const aGroupDate = getGroupDate(a.reservation);
-      const bGroupDate = getGroupDate(b.reservation);
-      const aGroup = new Date(aGroupDate.toDateString()).getTime();
-      const bGroup = new Date(bGroupDate.toDateString()).getTime();
-      if (aGroup !== bGroup) return aGroup - bGroup;
+      const aDay = new Date(a.eventTime.toDateString()).getTime();
+      const bDay = new Date(b.eventTime.toDateString()).getTime();
+      if (aDay !== bDay) return aDay - bDay;
       return a.eventTime.getTime() - b.eventTime.getTime();
     });
 
@@ -329,7 +318,7 @@ export default function TripsPage() {
                 let lastDateLabel = '';
                 return activeEntries.map((entry, idx) => {
                   const res = entry.reservation;
-                  const d = getGroupDate(res);
+                  const d = entry.eventTime;
                   const today = new Date();
                   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
                   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
