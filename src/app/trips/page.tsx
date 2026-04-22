@@ -155,7 +155,8 @@ export default function TripsPage() {
     const now = new Date();
     const start = new Date(r.tripStart);
     const end = new Date(r.tripEnd);
-    if (now >= start && now <= end) return end; // ongoing → sort by end
+    if (now > end) return end; // already ended today → sort by end
+    if (now >= start) return end; // ongoing → sort by end
     return start; // upcoming → sort by start
   }, []);
 
@@ -164,13 +165,21 @@ export default function TripsPage() {
     const act: Reservation[] = [];
     const p: Reservation[] = [];
 
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
     for (const r of reservations) {
       if (r.status === 'cancelled') {
         p.push(r);
         continue;
       }
+      const start = new Date(r.tripStart);
       const end = new Date(r.tripEnd);
-      if (now <= end) act.push(r);
+      // Active if: not ended yet, OR started today, OR ended today
+      const startedToday = start >= todayStart && start < todayEnd;
+      const endedToday = end >= todayStart && end < todayEnd;
+      if (now <= end || startedToday || endedToday) act.push(r);
       else p.push(r);
     }
 
@@ -330,6 +339,16 @@ export default function TripsPage() {
                             return (
                               <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-red-100 text-red-700 border-red-200">
                                 Ends at {timeStr}
+                              </span>
+                            );
+                          }
+
+                          // Check if already ended
+                          if (now > end) {
+                            const timeStr = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                            return (
+                              <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-gray-100 text-gray-500 border-gray-200">
+                                Ended at {timeStr}
                               </span>
                             );
                           }
