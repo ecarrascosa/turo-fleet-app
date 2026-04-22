@@ -166,14 +166,23 @@ export default function TripsPage() {
     return start; // upcoming
   }, []);
 
-  // Get the sort time within a day — the next relevant event
+  // Get the sort time within a day — use whichever event (start or end) falls on the group date
   const getEventTime = useCallback((r: Reservation) => {
     const now = new Date();
     const start = new Date(r.tripStart);
     const end = new Date(r.tripEnd);
-    if (now > end) return end; // already ended → sort by when it ended
-    if (now >= start) return end; // ongoing → sort by when it ends
-    return start; // upcoming → sort by when it starts
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
+    const startIsToday = start >= todayStart && start < todayEnd;
+    const endIsToday = end >= todayStart && end < todayEnd;
+    // If trip starts today, sort by start time
+    if (startIsToday) return start;
+    // If trip ends today (but started earlier), sort by end time
+    if (endIsToday) return end;
+    // Future trips: sort by start
+    if (now < start) return start;
+    // Ongoing spanning trips: sort by end
+    return end;
   }, []);
 
   const { active, past } = useMemo(() => {
