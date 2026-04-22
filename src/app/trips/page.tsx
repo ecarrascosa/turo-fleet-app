@@ -14,7 +14,7 @@ interface Reservation {
   renterToken?: string;
 }
 
-type Tab = 'upcoming' | 'ongoing' | 'history';
+type Tab = 'active' | 'past';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/', icon: '📊' },
@@ -100,7 +100,7 @@ function DateTag({ date, color }: { date: string; color: 'green' | 'red' | 'gray
 export default function TripsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>('upcoming');
+  const [tab, setTab] = useState<Tab>('active');
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -150,36 +150,31 @@ export default function TripsPage() {
     });
   };
 
-  const { upcoming, ongoing, history } = useMemo(() => {
+  const { active, past } = useMemo(() => {
     const now = new Date();
-    const up: Reservation[] = [];
-    const on: Reservation[] = [];
-    const hist: Reservation[] = [];
+    const act: Reservation[] = [];
+    const p: Reservation[] = [];
 
     for (const r of reservations) {
       if (r.status === 'cancelled') {
-        hist.push(r);
+        p.push(r);
         continue;
       }
-      const start = new Date(r.tripStart);
       const end = new Date(r.tripEnd);
-      if (now < start) up.push(r);
-      else if (now >= start && now <= end) on.push(r);
-      else hist.push(r);
+      if (now <= end) act.push(r);
+      else p.push(r);
     }
 
-    // Upcoming: soonest first
-    up.sort((a, b) => new Date(a.tripStart).getTime() - new Date(b.tripStart).getTime());
-    // Ongoing: ending soonest first
-    on.sort((a, b) => new Date(a.tripEnd).getTime() - new Date(b.tripEnd).getTime());
-    // History: most recent first
-    hist.sort((a, b) => new Date(b.tripEnd).getTime() - new Date(a.tripEnd).getTime());
+    // Active: soonest start first
+    act.sort((a, b) => new Date(a.tripStart).getTime() - new Date(b.tripStart).getTime());
+    // Past: most recent first
+    p.sort((a, b) => new Date(b.tripEnd).getTime() - new Date(a.tripEnd).getTime());
 
-    return { upcoming: up, ongoing: on, history: hist };
+    return { active: act, past: p };
   }, [reservations]);
 
-  const filtered = tab === 'upcoming' ? upcoming : tab === 'ongoing' ? ongoing : history;
-  const counts = { upcoming: upcoming.length, ongoing: ongoing.length, history: history.length };
+  const filtered = tab === 'active' ? active : past;
+  const counts = { active: active.length, past: past.length };
 
   return (
     <div className="h-full flex">
@@ -227,7 +222,7 @@ export default function TripsPage() {
 
           {/* Tabs */}
           <div className="flex bg-gray-200 rounded-lg p-0.5 mb-6">
-            {(['upcoming', 'ongoing', 'history'] as Tab[]).map(t => (
+            {(['active', 'past'] as Tab[]).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -250,10 +245,10 @@ export default function TripsPage() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-16">
               <div className="text-4xl mb-3">
-                {tab === 'upcoming' ? '🗓️' : tab === 'ongoing' ? '🚗' : '📭'}
+                {tab === 'active' ? '🗓️' : '📭'}
               </div>
               <p className="text-gray-500">
-                {tab === 'upcoming' ? 'No upcoming trips' : tab === 'ongoing' ? 'No ongoing trips' : 'No trip history'}
+                {tab === 'active' ? 'No active trips' : 'No past trips'}
               </p>
             </div>
           ) : (
@@ -262,9 +257,7 @@ export default function TripsPage() {
                 let lastDateLabel = '';
                 return filtered.map(res => {
                   // Group by date based on tab
-                  const groupDate = tab === 'upcoming' ? res.tripStart
-                    : tab === 'ongoing' ? res.tripEnd
-                    : res.tripStart;
+                  const groupDate = tab === 'active' ? res.tripStart : res.tripStart;
                   const d = new Date(groupDate);
                   const today = new Date();
                   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
@@ -301,19 +294,24 @@ export default function TripsPage() {
 
                       {/* Date tags based on tab */}
                       <div className="flex flex-wrap items-center gap-2">
-                        {tab === 'upcoming' && (
-                          <>
-                            <span className="text-xs text-gray-400">Starts</span>
-                            <DateTag date={res.tripStart} color="green" />
-                          </>
-                        )}
-                        {tab === 'ongoing' && (
-                          <>
-                            <span className="text-xs text-gray-400">Ends</span>
-                            <DateTag date={res.tripEnd} color="red" />
-                          </>
-                        )}
-                        {tab === 'history' && (
+                        {tab === 'active' && (() => {
+                          const now = new Date();
+                          const isOngoing = now >= new Date(res.tripStart);
+                          return isOngoing ? (
+                            <>
+                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">ongoing</span>
+                              <span className="text-xs text-gray-400">ends</span>
+                              <DateTag date={res.tripEnd} color="red" />
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">upcoming</span>
+                              <span className="text-xs text-gray-400">starts</span>
+                              <DateTag date={res.tripStart} color="green" />
+                            </>
+                          );
+                        })()}
+                        {tab === 'past' && (
                           <>
                             <DateTag date={res.tripStart} color="gray" />
                             <span className="text-xs text-gray-400">→</span>
