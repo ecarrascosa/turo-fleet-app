@@ -150,6 +150,15 @@ export default function TripsPage() {
     });
   };
 
+  // Helper: get the "event time" for an active trip — start if upcoming, end if ongoing
+  const getEventTime = useCallback((r: Reservation) => {
+    const now = new Date();
+    const start = new Date(r.tripStart);
+    const end = new Date(r.tripEnd);
+    if (now >= start && now <= end) return end; // ongoing → sort by end
+    return start; // upcoming → sort by start
+  }, []);
+
   const { active, past } = useMemo(() => {
     const now = new Date();
     const act: Reservation[] = [];
@@ -165,13 +174,13 @@ export default function TripsPage() {
       else p.push(r);
     }
 
-    // Active: soonest start first
-    act.sort((a, b) => new Date(a.tripStart).getTime() - new Date(b.tripStart).getTime());
+    // Active: chronological by next event time (start or end)
+    act.sort((a, b) => getEventTime(a).getTime() - getEventTime(b).getTime());
     // Past: most recent first
     p.sort((a, b) => new Date(b.tripEnd).getTime() - new Date(a.tripEnd).getTime());
 
     return { active: act, past: p };
-  }, [reservations]);
+  }, [reservations, getEventTime]);
 
   const filtered = tab === 'active' ? active : past;
   const counts = { active: active.length, past: past.length };
@@ -257,8 +266,8 @@ export default function TripsPage() {
                 let lastDateLabel = '';
                 return filtered.map(res => {
                   // Group by date based on tab
-                  const groupDate = tab === 'active' ? res.tripStart : res.tripStart;
-                  const d = new Date(groupDate);
+                  const eventTime = tab === 'active' ? getEventTime(res) : new Date(res.tripStart);
+                  const d = eventTime;
                   const today = new Date();
                   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
                   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
@@ -296,19 +305,40 @@ export default function TripsPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         {tab === 'active' && (() => {
                           const now = new Date();
-                          const isOngoing = now >= new Date(res.tripStart);
-                          return isOngoing ? (
-                            <>
-                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">ongoing</span>
-                              <span className="text-xs text-gray-400">ends</span>
-                              <DateTag date={res.tripEnd} color="red" />
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">upcoming</span>
-                              <span className="text-xs text-gray-400">starts</span>
-                              <DateTag date={res.tripStart} color="green" />
-                            </>
+                          const start = new Date(res.tripStart);
+                          const end = new Date(res.tripEnd);
+                          const isStarted = now >= start;
+                          const isUpcoming = !isStarted;
+
+                          if (isUpcoming) {
+                            // Not started yet → green tag with time
+                            const timeStr = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                            return (
+                              <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-green-100 text-green-700 border-green-200">
+                                Starts at {timeStr}
+                              </span>
+                            );
+                          }
+
+                          // Started — check if ending today
+                          const today = new Date();
+                          const endIsToday = end.toDateString() === today.toDateString();
+
+                          if (endIsToday) {
+                            // Ending today → red tag with time
+                            const timeStr = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                            return (
+                              <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-red-100 text-red-700 border-red-200">
+                                Ends at {timeStr}
+                              </span>
+                            );
+                          }
+
+                          // In progress, not ending today → plain label
+                          return (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                              In Progress
+                            </span>
                           );
                         })()}
                         {tab === 'past' && (
