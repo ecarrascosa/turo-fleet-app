@@ -349,26 +349,25 @@ export default function TripsPage() {
                             );
                           }
 
-                          // Started — check if ending today
-                          const today = new Date();
-                          const endIsToday = end.toDateString() === today.toDateString();
-
-                          if (endIsToday) {
-                            // Ending today → red tag with time
+                          // Check if already ended first
+                          if (now > end) {
                             const timeStr = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                             return (
-                              <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-red-100 text-red-700 border-red-200">
-                                Ends at {timeStr}
+                              <span className="text-xs text-gray-500">
+                                Ended at {timeStr}
                               </span>
                             );
                           }
 
-                          // Check if already ended
-                          if (now > end) {
+                          // Ending today but hasn't ended yet → red tag
+                          const today = new Date();
+                          const endIsToday = end.toDateString() === today.toDateString();
+
+                          if (endIsToday) {
                             const timeStr = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                             return (
-                              <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-gray-100 text-gray-500 border-gray-200">
-                                Ended at {timeStr}
+                              <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-red-100 text-red-700 border-red-200">
+                                Ends at {timeStr}
                               </span>
                             );
                           }
