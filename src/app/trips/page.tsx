@@ -155,15 +155,10 @@ export default function TripsPage() {
     const now = new Date();
     const start = new Date(r.tripStart);
     const end = new Date(r.tripEnd);
-    const todayStr = now.toDateString();
-    // If started or ended today, use the actual time today for sorting within the day
-    if (start.toDateString() === todayStr) {
-      if (now >= start) return start; // started today, ongoing → sort by start time
-      return start; // starting later today
-    }
-    if (now > end && end.toDateString() === todayStr) return end; // ended today
-    if (now >= start) return end; // ongoing, started before today → sort by end
-    return start; // upcoming
+    // Sort by the next relevant event time chronologically
+    if (now > end) return end; // already ended → sort by when it ended
+    if (now >= start) return end; // ongoing → sort by when it ends
+    return start; // upcoming → sort by when it starts
   }, []);
 
   const { active, past } = useMemo(() => {
