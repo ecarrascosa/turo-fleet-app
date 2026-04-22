@@ -322,16 +322,8 @@ export default function TripsPage() {
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     {/* Left info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">👤</span>
-                        <h3 className="font-bold text-gray-900">{res.guestName}</h3>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">
-                        🚗 {res.vehicleYear} {res.vehicleModel}
-                      </p>
-
-                      {/* Date tags based on tab */}
-                      <div className="flex flex-wrap items-center gap-2">
+                      {/* Status/tag on top */}
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         {tab === 'active' && (() => {
                           const now = new Date();
                           const start = new Date(res.tripStart);
@@ -392,6 +384,14 @@ export default function TripsPage() {
                           </>
                         )}
                       </div>
+
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">👤</span>
+                        <h3 className="font-bold text-gray-900">{res.guestName}</h3>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2">
+                        🚗 {res.vehicleYear} {res.vehicleModel}
+                      </p>
 
                       {/* Guest link */}
                       {res.renterToken && (
