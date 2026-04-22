@@ -155,9 +155,15 @@ export default function TripsPage() {
     const now = new Date();
     const start = new Date(r.tripStart);
     const end = new Date(r.tripEnd);
-    if (now > end) return end; // already ended today → sort by end
-    if (now >= start) return end; // ongoing → sort by end
-    return start; // upcoming → sort by start
+    const todayStr = now.toDateString();
+    // If started or ended today, use the actual time today for sorting within the day
+    if (start.toDateString() === todayStr) {
+      if (now >= start) return start; // started today, ongoing → sort by start time
+      return start; // starting later today
+    }
+    if (now > end && end.toDateString() === todayStr) return end; // ended today
+    if (now >= start) return end; // ongoing, started before today → sort by end
+    return start; // upcoming
   }, []);
 
   const { active, past } = useMemo(() => {
@@ -275,8 +281,22 @@ export default function TripsPage() {
                 let lastDateLabel = '';
                 return filtered.map(res => {
                   // Group by date based on tab
-                  const eventTime = tab === 'active' ? getEventTime(res) : new Date(res.tripStart);
-                  const d = eventTime;
+                  // For active tab: group by the most relevant date
+                  // - Upcoming: group by start date
+                  // - Ongoing that started today: group under today
+                  // - Ongoing that started before today: group by end date  
+                  // - Already ended today: group under today
+                  const d = (() => {
+                    if (tab !== 'active') return new Date(res.tripStart);
+                    const now = new Date();
+                    const start = new Date(res.tripStart);
+                    const end = new Date(res.tripEnd);
+                    const todayStr = now.toDateString();
+                    if (start.toDateString() === todayStr) return start; // started today → group under today
+                    if (now > end && end.toDateString() === todayStr) return end; // ended today → group under today
+                    if (now >= start) return end; // ongoing, started before today → group by end
+                    return start; // upcoming
+                  })();
                   const today = new Date();
                   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
                   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
