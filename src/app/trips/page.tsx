@@ -156,9 +156,14 @@ export default function TripsPage() {
     const start = new Date(r.tripStart);
     const end = new Date(r.tripEnd);
     const todayStr = now.toDateString();
-    if (start.toDateString() === todayStr) return start; // started today → group under today
-    if (now > end && end.toDateString() === todayStr) return end; // ended today → group under today
-    if (now >= start) return end; // ongoing, started before today → group by end
+    // Any trip touching today → group under today
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
+    const startedToday = start.toDateString() === todayStr;
+    const endedToday = end >= todayStart && end < todayEnd;
+    const spansToday = start < todayStart && end >= todayStart;
+    if (startedToday || endedToday || spansToday) return now; // group under today
+    if (now >= start) return end; // ongoing past today → group by end
     return start; // upcoming
   }, []);
 
