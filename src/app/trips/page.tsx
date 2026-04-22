@@ -150,12 +150,23 @@ export default function TripsPage() {
     });
   };
 
-  // Helper: get the "event time" for an active trip — start if upcoming, end if ongoing
+  // Get the group date for an active trip (which day header it belongs under)
+  const getGroupDate = useCallback((r: Reservation) => {
+    const now = new Date();
+    const start = new Date(r.tripStart);
+    const end = new Date(r.tripEnd);
+    const todayStr = now.toDateString();
+    if (start.toDateString() === todayStr) return start; // started today → group under today
+    if (now > end && end.toDateString() === todayStr) return end; // ended today → group under today
+    if (now >= start) return end; // ongoing, started before today → group by end
+    return start; // upcoming
+  }, []);
+
+  // Get the sort time within a day — the next relevant event
   const getEventTime = useCallback((r: Reservation) => {
     const now = new Date();
     const start = new Date(r.tripStart);
     const end = new Date(r.tripEnd);
-    // Sort by the next relevant event time chronologically
     if (now > end) return end; // already ended → sort by when it ended
     if (now >= start) return end; // ongoing → sort by when it ends
     return start; // upcoming → sort by when it starts
@@ -184,13 +195,18 @@ export default function TripsPage() {
       else p.push(r);
     }
 
-    // Active: chronological by next event time (start or end)
-    act.sort((a, b) => getEventTime(a).getTime() - getEventTime(b).getTime());
+    // Active: sort by group date first, then by event time within each day
+    act.sort((a, b) => {
+      const aGroup = new Date(getGroupDate(a).toDateString()).getTime();
+      const bGroup = new Date(getGroupDate(b).toDateString()).getTime();
+      if (aGroup !== bGroup) return aGroup - bGroup;
+      return getEventTime(a).getTime() - getEventTime(b).getTime();
+    });
     // Past: most recent first
     p.sort((a, b) => new Date(b.tripEnd).getTime() - new Date(a.tripEnd).getTime());
 
     return { active: act, past: p };
-  }, [reservations, getEventTime]);
+  }, [reservations, getEventTime, getGroupDate]);
 
   const filtered = tab === 'active' ? active : past;
   const counts = { active: active.length, past: past.length };
@@ -276,22 +292,7 @@ export default function TripsPage() {
                 let lastDateLabel = '';
                 return filtered.map(res => {
                   // Group by date based on tab
-                  // For active tab: group by the most relevant date
-                  // - Upcoming: group by start date
-                  // - Ongoing that started today: group under today
-                  // - Ongoing that started before today: group by end date  
-                  // - Already ended today: group under today
-                  const d = (() => {
-                    if (tab !== 'active') return new Date(res.tripStart);
-                    const now = new Date();
-                    const start = new Date(res.tripStart);
-                    const end = new Date(res.tripEnd);
-                    const todayStr = now.toDateString();
-                    if (start.toDateString() === todayStr) return start; // started today → group under today
-                    if (now > end && end.toDateString() === todayStr) return end; // ended today → group under today
-                    if (now >= start) return end; // ongoing, started before today → group by end
-                    return start; // upcoming
-                  })();
+                  const d = tab === 'active' ? getGroupDate(res) : new Date(res.tripStart);
                   const today = new Date();
                   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
                   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
