@@ -15,6 +15,13 @@ interface Reservation {
 }
 
 type Tab = 'active' | 'past';
+type EventType = 'pickup' | 'dropoff';
+
+interface DisplayEntry {
+  reservation: Reservation;
+  eventType: EventType;
+  eventTime: Date; // the time this entry sorts by
+}
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/', icon: '📊' },
@@ -185,9 +192,9 @@ export default function TripsPage() {
     return start;
   }, []);
 
-  const { active, past } = useMemo(() => {
+  const { activeEntries, past } = useMemo(() => {
     const now = new Date();
-    const act: Reservation[] = [];
+    const entries: DisplayEntry[] = [];
     const p: Reservation[] = [];
 
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -201,30 +208,45 @@ export default function TripsPage() {
       }
       const start = new Date(r.tripStart);
       const end = new Date(r.tripEnd);
-      // Active if: not ended yet, OR started today, OR ended today
       const startedToday = start >= todayStart && start < todayEnd;
       const endedToday = end >= todayStart && end < todayEnd;
-      if (now <= end || startedToday || endedToday) act.push(r);
-      else p.push(r);
+
+      if (now <= end || startedToday || endedToday) {
+        // If both start and end are on the same group date, create two entries
+        if (startedToday && endedToday) {
+          entries.push({ reservation: r, eventType: 'pickup', eventTime: start });
+          entries.push({ reservation: r, eventType: 'dropoff', eventTime: end });
+        } else if (startedToday) {
+          entries.push({ reservation: r, eventType: 'pickup', eventTime: start });
+        } else if (endedToday) {
+          entries.push({ reservation: r, eventType: 'dropoff', eventTime: end });
+        } else {
+          // Spans today or future — single entry
+          const eventTime = now >= start ? end : start;
+          entries.push({ reservation: r, eventType: now >= start ? 'dropoff' : 'pickup', eventTime });
+        }
+      } else {
+        p.push(r);
+      }
     }
 
-    // Active: sort by group date first, then by event time within each day
-    act.sort((a, b) => {
-      const aGroupDate = getGroupDate(a);
-      const bGroupDate = getGroupDate(b);
+    // Sort entries by group date, then event time
+    entries.sort((a, b) => {
+      const aGroupDate = getGroupDate(a.reservation);
+      const bGroupDate = getGroupDate(b.reservation);
       const aGroup = new Date(aGroupDate.toDateString()).getTime();
       const bGroup = new Date(bGroupDate.toDateString()).getTime();
       if (aGroup !== bGroup) return aGroup - bGroup;
-      return getEventTime(a, aGroupDate).getTime() - getEventTime(b, bGroupDate).getTime();
+      return a.eventTime.getTime() - b.eventTime.getTime();
     });
+
     // Past: most recent first
     p.sort((a, b) => new Date(b.tripEnd).getTime() - new Date(a.tripEnd).getTime());
 
-    return { active: act, past: p };
-  }, [reservations, getEventTime, getGroupDate]);
+    return { activeEntries: entries, past: p };
+  }, [reservations, getGroupDate]);
 
-  const filtered = tab === 'active' ? active : past;
-  const counts = { active: active.length, past: past.length };
+  const counts = { active: activeEntries.length, past: past.length };
 
   return (
     <div className="h-full flex">
@@ -292,7 +314,7 @@ export default function TripsPage() {
 
           {loading ? (
             <div className="text-gray-400 animate-pulse py-16 text-center">Loading trips...</div>
-          ) : filtered.length === 0 ? (
+          ) : (tab === 'active' ? activeEntries.length : past.length) === 0 ? (
             <div className="text-center py-16">
               <div className="text-4xl mb-3">
                 {tab === 'active' ? '🗓️' : '📭'}
@@ -301,13 +323,98 @@ export default function TripsPage() {
                 {tab === 'active' ? 'No active trips' : 'No past trips'}
               </p>
             </div>
+          ) : tab === 'active' ? (
+            <div className="space-y-4">
+              {(() => {
+                let lastDateLabel = '';
+                return activeEntries.map((entry, idx) => {
+                  const res = entry.reservation;
+                  const d = getGroupDate(res);
+                  const today = new Date();
+                  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+                  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+
+                  let dateLabel: string;
+                  if (d.toDateString() === today.toDateString()) dateLabel = 'Today';
+                  else if (d.toDateString() === tomorrow.toDateString()) dateLabel = 'Tomorrow';
+                  else if (d.toDateString() === yesterday.toDateString()) dateLabel = 'Yesterday';
+                  else dateLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+                  const showHeader = dateLabel !== lastDateLabel;
+                  lastDateLabel = dateLabel;
+
+                  // Tag based on event type
+                  const now = new Date();
+                  const start = new Date(res.tripStart);
+                  const end = new Date(res.tripEnd);
+                  const timeStr = entry.eventTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+                  let tag: React.ReactNode;
+                  if (entry.eventType === 'pickup') {
+                    if (now >= start) {
+                      // Already started
+                      tag = <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">In Progress</span>;
+                    } else {
+                      tag = <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-green-100 text-green-700 border-green-200">Starting at {timeStr}</span>;
+                    }
+                  } else {
+                    // dropoff
+                    if (now > end) {
+                      tag = <span className="text-xs text-gray-500">Ended at {timeStr}</span>;
+                    } else {
+                      tag = <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-red-100 text-red-700 border-red-200">Ending at {timeStr}</span>;
+                    }
+                  }
+
+                  return (
+                    <div key={`${res.reservationId}-${entry.eventType}`}>
+                      {showHeader && (
+                        <div className="flex items-center gap-3 pt-2 pb-1">
+                          <h2 className="text-sm font-bold text-gray-700 whitespace-nowrap">{dateLabel}</h2>
+                          <div className="flex-1 h-px bg-gray-200" />
+                        </div>
+                      )}
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">{tag}</div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-lg">👤</span>
+                              <h3 className="font-bold text-gray-900">{res.guestName}</h3>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-2">🚗 {res.vehicleYear} {res.vehicleModel}</p>
+                            {res.renterToken && (
+                              <div className="mt-3 flex items-center gap-2">
+                                <div className="flex-1 min-w-0 bg-gray-50 rounded-lg border border-gray-200 px-3 py-2 flex items-center gap-2">
+                                  <span className="text-cyan-500 text-sm">🔗</span>
+                                  <span className="text-xs text-gray-500 truncate flex-1">turo-fleet-app-theta.vercel.app/trip/{res.renterToken}</span>
+                                  <button
+                                    onClick={() => copyGuestLink(res.renterToken!, res.reservationId)}
+                                    className={`shrink-0 px-3 py-1 rounded-md text-xs font-medium transition-all ${copiedId === res.reservationId ? 'bg-green-100 text-green-700' : 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100'}`}
+                                  >{copiedId === res.reservationId ? '✓ Copied' : 'Copy'}</button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          {res.carId && (
+                            <div className="flex gap-2 sm:flex-col sm:gap-2">
+                              <CommandButton icon={<LockOpen />} color="text-green-600" borderColor="border-green-300 hover:border-green-500" onClick={() => sendCommand('unlock-restore', res.carId!)} loading={!!actionLoading[`${res.carId}-unlock-restore`]} title="Unlock + Enable Engine" />
+                              <CommandButton icon={<LockClosed />} color="text-amber-600" borderColor="border-amber-300 hover:border-amber-500" onClick={() => sendCommand('lock-kill', res.carId!)} loading={!!actionLoading[`${res.carId}-lock-kill`]} title="Lock + Kill Engine" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
           ) : (
             <div className="space-y-4">
               {(() => {
                 let lastDateLabel = '';
-                return filtered.map(res => {
-                  // Group by date based on tab
-                  const d = tab === 'active' ? getGroupDate(res) : new Date(res.tripStart);
+                return past.map(res => {
+                  const d = new Date(res.tripStart);
                   const today = new Date();
                   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
                   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
@@ -330,119 +437,23 @@ export default function TripsPage() {
                         </div>
                       )}
                       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    {/* Left info */}
-                    <div className="flex-1 min-w-0">
-                      {/* Status/tag on top */}
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        {tab === 'active' && (() => {
-                          const now = new Date();
-                          const start = new Date(res.tripStart);
-                          const end = new Date(res.tripEnd);
-                          const isStarted = now >= start;
-                          const isUpcoming = !isStarted;
-
-                          if (isUpcoming) {
-                            // Not started yet → green tag with time
-                            const timeStr = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                            return (
-                              <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-green-100 text-green-700 border-green-200">
-                                Starts at {timeStr}
-                              </span>
-                            );
-                          }
-
-                          // Check if already ended first
-                          if (now > end) {
-                            const timeStr = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                            return (
-                              <span className="text-xs text-gray-500">
-                                Ended at {timeStr}
-                              </span>
-                            );
-                          }
-
-                          // Ending today but hasn't ended yet → red tag
-                          const today = new Date();
-                          const endIsToday = end.toDateString() === today.toDateString();
-
-                          if (endIsToday) {
-                            const timeStr = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                            return (
-                              <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-red-100 text-red-700 border-red-200">
-                                Ends at {timeStr}
-                              </span>
-                            );
-                          }
-
-                          // In progress, not ending today → plain label
-                          return (
-                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                              In Progress
-                            </span>
-                          );
-                        })()}
-                        {tab === 'past' && (
-                          <>
-                            <DateTag date={res.tripStart} color="gray" />
-                            <span className="text-xs text-gray-400">→</span>
-                            <DateTag date={res.tripEnd} color="gray" />
-                            {res.status === 'cancelled' && (
-                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">
-                                cancelled
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">👤</span>
-                        <h3 className="font-bold text-gray-900">{res.guestName}</h3>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">
-                        🚗 {res.vehicleYear} {res.vehicleModel}
-                      </p>
-
-                      {/* Guest link */}
-                      {res.renterToken && (
-                        <div className="mt-3 flex items-center gap-2">
-                          <div className="flex-1 min-w-0 bg-gray-50 rounded-lg border border-gray-200 px-3 py-2 flex items-center gap-2">
-                            <span className="text-cyan-500 text-sm">🔗</span>
-                            <span className="text-xs text-gray-500 truncate flex-1">
-                              turo-fleet-app-theta.vercel.app/trip/{res.renterToken}
-                            </span>
-                            <button
-                              onClick={() => copyGuestLink(res.renterToken!, res.reservationId)}
-                              className={`shrink-0 px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                                copiedId === res.reservationId
-                                  ? 'bg-green-100 text-green-700'
-                                  : 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100'
-                              }`}
-                            >
-                              {copiedId === res.reservationId ? '✓ Copied' : 'Copy'}
-                            </button>
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <DateTag date={res.tripStart} color="gray" />
+                              <span className="text-xs text-gray-400">→</span>
+                              <DateTag date={res.tripEnd} color="gray" />
+                              {res.status === 'cancelled' && (
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">cancelled</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-lg">👤</span>
+                              <h3 className="font-bold text-gray-900">{res.guestName}</h3>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-2">🚗 {res.vehicleYear} {res.vehicleModel}</p>
                           </div>
                         </div>
-                      )}
-                    </div>
-
-                    {/* Right: command buttons */}
-                    {res.carId && (
-                      <div className="flex gap-2 sm:flex-col sm:gap-2">
-                        <CommandButton
-                          icon={<LockOpen />} color="text-green-600" borderColor="border-green-300 hover:border-green-500"
-                          onClick={() => sendCommand('unlock-restore', res.carId!)}
-                          loading={!!actionLoading[`${res.carId}-unlock-restore`]} title="Unlock + Enable Engine"
-                        />
-                        <CommandButton
-                          icon={<LockClosed />} color="text-amber-600" borderColor="border-amber-300 hover:border-amber-500"
-                          onClick={() => sendCommand('lock-kill', res.carId!)}
-                          loading={!!actionLoading[`${res.carId}-lock-kill`]} title="Lock + Kill Engine"
-                        />
-                      </div>
-                    )}
-                  </div>
                       </div>
                     </div>
                   );
