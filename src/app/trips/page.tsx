@@ -166,23 +166,23 @@ export default function TripsPage() {
     return start; // upcoming
   }, []);
 
-  // Get the sort time within a day — use whichever event (start or end) falls on the group date
-  const getEventTime = useCallback((r: Reservation) => {
+  // Get the sort time — use whichever event falls on the trip's group date
+  const getEventTime = useCallback((r: Reservation, groupDate: Date) => {
     const now = new Date();
     const start = new Date(r.tripStart);
     const end = new Date(r.tripEnd);
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
-    const startIsToday = start >= todayStart && start < todayEnd;
-    const endIsToday = end >= todayStart && end < todayEnd;
-    // If trip starts today, sort by start time
-    if (startIsToday) return start;
-    // If trip ends today (but started earlier), sort by end time
-    if (endIsToday) return end;
-    // Future trips: sort by start
-    if (now < start) return start;
-    // Ongoing spanning trips: sort by end
-    return end;
+    const groupStr = groupDate.toDateString();
+    const startOnGroup = start.toDateString() === groupStr;
+    const endOnGroup = end.toDateString() === groupStr;
+
+    // If already started: prefer end time if it's on the group date, otherwise use start
+    if (now >= start || now > end) {
+      if (endOnGroup) return end;
+      if (startOnGroup) return start;
+      return end;
+    }
+    // Upcoming: use start time
+    return start;
   }, []);
 
   const { active, past } = useMemo(() => {
@@ -210,10 +210,12 @@ export default function TripsPage() {
 
     // Active: sort by group date first, then by event time within each day
     act.sort((a, b) => {
-      const aGroup = new Date(getGroupDate(a).toDateString()).getTime();
-      const bGroup = new Date(getGroupDate(b).toDateString()).getTime();
+      const aGroupDate = getGroupDate(a);
+      const bGroupDate = getGroupDate(b);
+      const aGroup = new Date(aGroupDate.toDateString()).getTime();
+      const bGroup = new Date(bGroupDate.toDateString()).getTime();
       if (aGroup !== bGroup) return aGroup - bGroup;
-      return getEventTime(a).getTime() - getEventTime(b).getTime();
+      return getEventTime(a, aGroupDate).getTime() - getEventTime(b, bGroupDate).getTime();
     });
     // Past: most recent first
     p.sort((a, b) => new Date(b.tripEnd).getTime() - new Date(a.tripEnd).getTime());
