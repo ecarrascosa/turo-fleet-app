@@ -36,7 +36,7 @@ export function parseTuroEmail(text: string): TuroEmail | null {
   let type: TuroEmail['type'];
   if (/trip is booked/i.test(text)) {
     type = 'booked';
-  } else if (/has cancelled their trip/i.test(text) || /Turo (?:has )?cancelled/i.test(text)) {
+  } else if (/has cancelled their trip/i.test(text) || /Turo (?:has )?cancelled/i.test(text) || /You['']ve cancelled/i.test(text)) {
     type = 'cancelled';
   } else if (/has changed their trip/i.test(text)) {
     type = 'modified';
@@ -173,6 +173,27 @@ function toPacificISO(year: number, month: number, day: number, hours: number, m
 }
 
 function parseTripDate(text: string, label: string): string | undefined {
+  // Pattern 0: Multi-line format: "Trip start\n4/18/26\n11:00 AM"
+  const multiLinePattern = new RegExp(label + '\\s*\\n\\s*(\\d{1,2}/\\d{1,2}/\\d{2,4})\\s*\\n\\s*(\\d{1,2}:\\d{2}\\s*(?:AM|PM|a\\.?m\\.?|p\\.?m\\.?))', 'i');
+  const multiMatch = text.match(multiLinePattern);
+  if (multiMatch) {
+    const dateParts = multiMatch[1].split('/');
+    const month = parseInt(dateParts[0]);
+    const day = parseInt(dateParts[1]);
+    let year = parseInt(dateParts[2]);
+    if (year < 100) year += 2000;
+
+    const timeParts = multiMatch[2].match(/(\d{1,2}):(\d{2})\s*([APap]\.?[Mm]\.?)/);
+    if (timeParts) {
+      let hours = parseInt(timeParts[1]);
+      const minutes = parseInt(timeParts[2]);
+      const ampm = timeParts[3].replace(/\./g, '').toUpperCase();
+      if (ampm === 'PM' && hours !== 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+      return toPacificISO(year, month, day, hours, minutes);
+    }
+  }
+
   // Pattern 1: "Trip start: 2026-04-28 8:00 a.m." (ISO-ish with a.m./p.m.)
   const isoPattern = new RegExp(label + ':?\\s*(\\d{4})-(\\d{2})-(\\d{2})\\s+(\\d{1,2}):(\\d{2})\\s*([ap]\\.?m\\.?)', 'i');
   const isoMatch = text.match(isoPattern);

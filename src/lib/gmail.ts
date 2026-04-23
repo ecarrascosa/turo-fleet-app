@@ -114,6 +114,7 @@ export async function fetchTuroEmails(maxResults = 20, afterDate?: string): Prom
     `from:noreply@mail.turo.com subject:"is booked"${dateFilter}`,
     `from:noreply@mail.turo.com subject:"has cancelled"${dateFilter}`,
     `from:noreply@mail.turo.com subject:"has changed"${dateFilter}`,
+    `from:noreply@mail.turo.com subject:"You've cancelled"${dateFilter}`,
   ];
 
   const allMessages: Array<{ id: string }> = [];

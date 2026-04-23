@@ -152,9 +152,24 @@ export async function upsertFromEmail(
 
   // Handle cancellation
   if (email.type === 'cancelled') {
+    const carId = fleetCars && email.vehicleModel
+      ? matchCarId(email.vehicleModel, email.vehicleYear, fleetCars)
+      : undefined;
+    const token = generateToken();
     await sql`
-      UPDATE reservations SET status = 'cancelled', updated_at = NOW()
-      WHERE reservation_id = ${email.reservationId}
+      INSERT INTO reservations (
+        reservation_id, guest_name, vehicle_year, vehicle_model, car_id,
+        trip_start, trip_end, earnings, distance_included,
+        status, renter_token, messages
+      ) VALUES (
+        ${email.reservationId}, ${email.guestName}, ${email.vehicleYear}, ${email.vehicleModel},
+        ${carId || null}, ${email.tripStart || null}, ${email.tripEnd || null},
+        ${email.earnings ?? null}, ${email.distanceIncluded ?? null},
+        'cancelled', ${token}, '[]'::jsonb
+      )
+      ON CONFLICT (reservation_id) DO UPDATE SET
+        status = 'cancelled',
+        updated_at = NOW()
     `;
     const res = await getReservationById(email.reservationId);
     return res!;
