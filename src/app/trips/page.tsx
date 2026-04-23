@@ -212,10 +212,18 @@ export default function TripsPage() {
       const endedToday = end >= todayStart && end < todayEnd;
 
       if (now <= end || startedToday || endedToday) {
-        // Always create a pickup entry (for start date)
-        entries.push({ reservation: r, eventType: 'pickup', eventTime: start });
-        // Always create a dropoff entry too
-        entries.push({ reservation: r, eventType: 'dropoff', eventTime: end });
+        if (now < start) {
+          // Upcoming: show both pickup and dropoff
+          entries.push({ reservation: r, eventType: 'pickup', eventTime: start });
+          entries.push({ reservation: r, eventType: 'dropoff', eventTime: end });
+        } else if (startedToday) {
+          // Started today: show both
+          entries.push({ reservation: r, eventType: 'pickup', eventTime: start });
+          entries.push({ reservation: r, eventType: 'dropoff', eventTime: end });
+        } else {
+          // Already in progress (started in the past): only show dropoff
+          entries.push({ reservation: r, eventType: 'dropoff', eventTime: end });
+        }
       } else {
         p.push(r);
       }
