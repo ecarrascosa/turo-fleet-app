@@ -74,11 +74,13 @@ export default function ServicePage() {
       if (!header) return;
       const vehicleIdx = header.findIndex(h => h.toLowerCase().includes('vehicle'));
       const checkinIdx = header.findIndex(h => h.toLowerCase().includes('check-in odometer'));
+      const tripEndIdx = header.findIndex(h => h.toLowerCase().includes('trip end'));
       if (vehicleIdx === -1 || checkinIdx === -1) {
         showToast('❌ CSV must have "Vehicle" and "Check-in odometer" columns', 'error');
         return;
       }
       const plateMap: Record<string, number> = {};
+      const plateDates: Record<string, string> = {};
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
@@ -98,8 +100,11 @@ export default function ServicePage() {
         const plate = plateMatch[1];
         const odo = parseFloat(cols[checkinIdx]);
         if (!odo || odo <= 0 || isNaN(odo)) continue;
-        if (!plateMap[plate] || odo > plateMap[plate]) {
+        const tripEnd = tripEndIdx !== -1 ? cols[tripEndIdx] || '' : '';
+        // Use the most recent trip's odometer (by trip end date), not the highest value
+        if (!plateMap[plate] || (tripEnd && tripEnd > (plateDates[plate] || ''))) {
           plateMap[plate] = Math.round(odo);
+          plateDates[plate] = tripEnd;
         }
       }
       if (Object.keys(plateMap).length === 0) {
@@ -191,7 +196,7 @@ export default function ServicePage() {
           <h2 className="font-bold text-gray-900 mb-3">📤 Upload Turo CSV</h2>
           {!csvPreview ? (
             <div className="space-y-3">
-              <p className="text-xs text-gray-500">Upload a Turo trip CSV to bulk-update odometer readings. The highest check-in odometer per vehicle will be used.</p>
+              <p className="text-xs text-gray-500">Upload a Turo trip CSV to bulk-update odometer readings. The most recent check-in odometer per vehicle will be used.</p>
               <input
                 type="file"
                 accept=".csv"
