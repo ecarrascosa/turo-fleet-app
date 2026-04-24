@@ -9,7 +9,7 @@ function getTripStatus(tripStart: string, tripEnd: string): 'upcoming' | 'active
   const start = new Date(tripStart).getTime();
   const end = new Date(tripEnd).getTime();
   const graceEnd = end + 30 * 60 * 1000;
-  const earlyAccess = start - 15 * 60 * 1000;
+  const earlyAccess = start - 30 * 60 * 1000;
   if (now < earlyAccess) return 'upcoming';
   if (now <= end) return 'active';
   if (now <= graceEnd) return 'grace';
