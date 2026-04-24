@@ -89,5 +89,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, plate, newLastService: Number(mileage) });
   }
 
+  if (action === 'bulk-odometer') {
+    const { data } = body;
+    if (!data || typeof data !== 'object') {
+      return NextResponse.json({ error: 'data object required' }, { status: 400 });
+    }
+    let count = 0;
+    for (const [plate, mileage] of Object.entries(data)) {
+      if (typeof mileage === 'number' && mileage > 0) {
+        odoOverrides[plate] = mileage;
+        count++;
+      }
+    }
+    return NextResponse.json({ success: true, count });
+  }
+
   return NextResponse.json({ error: 'unknown action' }, { status: 400 });
 }
