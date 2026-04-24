@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getReservationByToken } from '@/lib/reservations';
-import { lockAndKill, unlockAndRestore } from '@/lib/whatsgps';
+import { lockOnly, unlockOnly } from '@/lib/whatsgps';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,10 +43,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     }
 
     if (action === 'unlock') {
-      const result = await unlockAndRestore(reservation.carId);
+      const result = await unlockOnly(reservation.carId);
       return NextResponse.json({ success: true, result });
     } else {
-      const result = await lockAndKill(reservation.carId);
+      const result = await lockOnly(reservation.carId);
       return NextResponse.json({ success: true, result });
     }
   } catch (e: any) {

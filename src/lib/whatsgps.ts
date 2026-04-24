@@ -195,6 +195,12 @@ export async function lockOnly(carId: string) {
   return { lock: lockResult };
 }
 
+export async function unlockOnly(carId: string) {
+  const unlockResult = await sendCommand(carId, COMMANDS.DOOR.orderId, COMMANDS.DOOR.unlock);
+  setDeviceState(carId, false, undefined);
+  return { unlock: unlockResult };
+}
+
 export async function lockAndKill(carId: string) {
   const lockResult = await sendCommand(carId, COMMANDS.DOOR.orderId, COMMANDS.DOOR.lock);
   const killResult = await sendCommand(carId, COMMANDS.ENGINE.orderId, COMMANDS.ENGINE.cut, CMD_PASSWORD);
