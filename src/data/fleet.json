@@ -1,33 +1,157 @@
 [
-  {"car": "2015 Toyota Corolla", "plate": "8NNH938", "lastService": 137643},
-  {"car": "2012 Chevy Cruze", "plate": "8GOF095", "lastService": 129812},
-  {"car": "2016 VW Jetta", "plate": "7RBK253", "lastService": 151324},
-  {"car": "2019 Toyota Corolla", "plate": "8UXU000", "lastService": 131037},
-  {"car": "2022 Toyota Corolla", "plate": "9BPX540", "lastService": 88085},
-  {"car": "2019 VW Tiguan", "plate": "8JVX476", "lastService": 122690},
-  {"car": "2022 Mazda CX-30", "plate": "9DCW334", "lastService": 91033},
-  {"car": "2023 Tesla Model 3", "plate": "9FZJ670", "lastService": null},
-  {"car": "2014 BMW 320xDrive", "plate": "7STE017", "lastService": 87521},
-  {"car": "2016 BMW X3", "plate": "9XTY709", "lastService": 104777},
-  {"car": "2025 Toyota Corolla Hybrid", "plate": "9RNT319", "lastService": 22341},
-  {"car": "2025 Toyota Corolla LE", "plate": "9RPA138", "lastService": 29974},
-  {"car": "2023 Kia Forte", "plate": "9EKF941", "lastService": 53323},
-  {"car": "2016 Jeep Wrangler", "plate": "8HJR881", "lastService": 73144},
-  {"car": "2013 BMW X5", "plate": "9LJD332", "lastService": 83602},
-  {"car": "2016 Jeep Cherokee", "plate": "7RXF934", "lastService": 77117},
-  {"car": "2014 BMW X3", "plate": "7DSC885", "lastService": 98003},
-  {"car": "2025 Toyota Corolla", "plate": "9UOC437", "lastService": 15161},
-  {"car": "2013 Volkswagen Jetta", "plate": "9FVF046", "lastService": 62084},
-  {"car": "2014 Audi A4", "plate": "7EHU865", "lastService": 79618},
-  {"car": "2014 Kia Sportage", "plate": "7JAF140", "lastService": 56081},
-  {"car": "2016 Volkswagen Jetta (Silver)", "plate": "7NRH469", "lastService": 30257},
-  {"car": "2013 Hyundai Elantra", "plate": "6WEK555", "lastService": null},
-  {"car": "2013 Toyota Yaris", "plate": "8VLS461", "lastService": 69946},
-  {"car": "2013 Toyota Camry", "plate": "7BXV391", "lastService": 65966},
-  {"car": "2017 Toyota Corolla", "plate": "8FMU623", "lastService": 65219},
-  {"car": "2023 Tesla Model Y", "plate": "EJ75H15", "lastService": null},
-  {"car": "2025 Toyota Rav4", "plate": "9WUA725", "lastService": 6572},
-  {"car": "2017 Hyundai Veloster", "plate": "9BBD813", "lastService": null},
-  {"car": "2016 Hyundai Elantra", "plate": "8EVL825", "lastService": 66463},
-  {"car": "2026 Toyota Corolla Cross", "plate": "9XBP640", "lastService": 0}
+  {
+    "car": "2015 Toyota Corolla",
+    "plate": "8NNH938",
+    "lastService": 143625
+  },
+  {
+    "car": "2012 Chevy Cruze",
+    "plate": "8GOF095",
+    "lastService": 129812
+  },
+  {
+    "car": "2016 VW Jetta",
+    "plate": "7RBK253",
+    "lastService": 151324
+  },
+  {
+    "car": "2019 Toyota Corolla",
+    "plate": "8UXU000",
+    "lastService": 131037
+  },
+  {
+    "car": "2022 Toyota Corolla",
+    "plate": "9BPX540",
+    "lastService": 88085
+  },
+  {
+    "car": "2019 VW Tiguan",
+    "plate": "8JVX476",
+    "lastService": 124017
+  },
+  {
+    "car": "2022 Mazda CX-30",
+    "plate": "9DCW334",
+    "lastService": 97308
+  },
+  {
+    "car": "2023 Tesla Model 3",
+    "plate": "9FZJ670",
+    "lastService": null
+  },
+  {
+    "car": "2014 BMW 320xDrive",
+    "plate": "7STE017",
+    "lastService": 94896
+  },
+  {
+    "car": "2016 BMW X3",
+    "plate": "9XTY709",
+    "lastService": 104777
+  },
+  {
+    "car": "2025 Toyota Corolla Hybrid",
+    "plate": "9RNT319",
+    "lastService": 32462
+  },
+  {
+    "car": "2025 Toyota Corolla LE",
+    "plate": "9RPA138",
+    "lastService": 29974
+  },
+  {
+    "car": "2023 Kia Forte",
+    "plate": "9EKF941",
+    "lastService": 53323
+  },
+  {
+    "car": "2016 Jeep Wrangler",
+    "plate": "8HJR881",
+    "lastService": 73144
+  },
+  {
+    "car": "2013 BMW X5",
+    "plate": "9LJD332",
+    "lastService": 83602
+  },
+  {
+    "car": "2016 Jeep Cherokee",
+    "plate": "7RXF934",
+    "lastService": 77117
+  },
+  {
+    "car": "2014 BMW X3",
+    "plate": "7DSC885",
+    "lastService": 98003
+  },
+  {
+    "car": "2025 Toyota Corolla",
+    "plate": "9UOC437",
+    "lastService": 21146
+  },
+  {
+    "car": "2013 Volkswagen Jetta",
+    "plate": "9FVF046",
+    "lastService": 62084
+  },
+  {
+    "car": "2014 Audi A4",
+    "plate": "7EHU865",
+    "lastService": 85224
+  },
+  {
+    "car": "2014 Kia Sportage",
+    "plate": "7JAF140",
+    "lastService": 56081
+  },
+  {
+    "car": "2016 Volkswagen Jetta (Silver)",
+    "plate": "7NRH469",
+    "lastService": 30257
+  },
+  {
+    "car": "2013 Hyundai Elantra",
+    "plate": "6WEK555",
+    "lastService": null
+  },
+  {
+    "car": "2013 Toyota Yaris",
+    "plate": "8VLS461",
+    "lastService": 69946
+  },
+  {
+    "car": "2013 Toyota Camry",
+    "plate": "7BXV391",
+    "lastService": 71342
+  },
+  {
+    "car": "2017 Toyota Corolla",
+    "plate": "8FMU623",
+    "lastService": 65219
+  },
+  {
+    "car": "2023 Tesla Model Y",
+    "plate": "EJ75H15",
+    "lastService": null
+  },
+  {
+    "car": "2025 Toyota Rav4",
+    "plate": "9WUA725",
+    "lastService": 9515
+  },
+  {
+    "car": "2017 Hyundai Veloster",
+    "plate": "9BBD813",
+    "lastService": 73091
+  },
+  {
+    "car": "2016 Hyundai Elantra",
+    "plate": "8EVL825",
+    "lastService": 66463
+  },
+  {
+    "car": "2026 Toyota Corolla Cross",
+    "plate": "9XBP640",
+    "lastService": 9676
+  }
 ]
