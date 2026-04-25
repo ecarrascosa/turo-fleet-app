@@ -57,5 +57,6 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ query: q, total: listData.resultSizeEstimate, count: listData.messages.length, messages: results });
+  const allIds = listData.messages.map((m: any) => m.id);
+  return NextResponse.json({ query: q, total: listData.resultSizeEstimate, count: listData.messages.length, messages: results, allIds });
 }
