@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get('q') || 'from:noreply@mail.turo.com';
-  const max = req.nextUrl.searchParams.get('max') || '10';
+  const max = parseInt(req.nextUrl.searchParams.get('max') || '500', 10);
 
-  // Use exact same token approach as debug/gmail (which works)
+  // Refresh token
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -23,40 +24,27 @@ export async function GET(req: NextRequest) {
   }
   const token = tokenData.access_token;
 
-  const listRes = await fetch(
-    `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(q)}&maxResults=${max}`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  const listData = await listRes.json();
+  // Paginate through ALL message IDs
+  const allIds: string[] = [];
+  let pageToken: string | undefined;
 
-  if (!listData.messages?.length) {
-    return NextResponse.json({ 
-      query: q, count: 0, messages: [], 
-      raw: listData, 
-      tokenPrefix: token?.substring(0, 30),
-      tokenLen: token?.length,
-      listStatus: listRes.status,
-      refreshPrefix: process.env.GMAIL_REFRESH_TOKEN?.substring(0, 20),
-      cidPrefix: process.env.GMAIL_CLIENT_ID?.substring(0, 20),
-      region: process.env.VERCEL_REGION || 'unknown',
-    });
+  while (allIds.length < max) {
+    const pageSize = Math.min(100, max - allIds.length);
+    let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(q)}&maxResults=${pageSize}`;
+    if (pageToken) url += `&pageToken=${pageToken}`;
+
+    const listRes = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const listData = await listRes.json();
+
+    if (!listData.messages?.length) break;
+
+    for (const msg of listData.messages) {
+      allIds.push(msg.id);
+    }
+
+    pageToken = listData.nextPageToken;
+    if (!pageToken) break;
   }
 
-  const results = [];
-  for (const msg of listData.messages.slice(0, 5)) {
-    const detail = await fetch(
-      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=Date`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const d = await detail.json();
-    const headers = d.payload?.headers || [];
-    results.push({
-      id: msg.id,
-      subject: headers.find((h: any) => h.name === 'Subject')?.value,
-      date: headers.find((h: any) => h.name === 'Date')?.value,
-    });
-  }
-
-  const allIds = listData.messages.map((m: any) => m.id);
-  return NextResponse.json({ query: q, total: listData.resultSizeEstimate, count: listData.messages.length, messages: results, allIds });
+  return NextResponse.json({ query: q, count: allIds.length, allIds });
 }
