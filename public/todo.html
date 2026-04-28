@@ -23,6 +23,7 @@
   .tag.checkin { background: #1e3a5f; color: #60a5fa; }
   .tag.checkout { background: #3b1f1f; color: #f87171; }
   .tag.clean { background: #1a3329; color: #4ade80; }
+  .tag.fuel { background: #3b2f1a; color: #fbbf24; }
   .progress { margin-top: 20px; text-align: center; color: #64748b; font-size: 0.85rem; }
   .bar { height: 4px; background: #1e293b; border-radius: 2px; margin-top: 8px; overflow: hidden; }
   .bar-fill { height: 100%; background: #22c55e; border-radius: 2px; transition: width 0.4s; }
@@ -51,12 +52,14 @@ const tasks = [
   { car: "White Jetta", type: "checkin" },
   { car: "Mazda", type: "clean" },
   { car: "Corolla 2019", type: "checkin" },
+  { car: "Wrangler", type: "fuel" },
+  { car: "Mazda", type: "fuel" },
 ];
 
 const KEY = "fleet-todo-" + new Date().toISOString().slice(0,10);
 let state = JSON.parse(localStorage.getItem(KEY) || "{}");
 
-const tagLabels = { checkin: "Clean & Check-in", checkout: "Checkout", clean: "Clean" };
+const tagLabels = { checkin: "Clean & Check-in", checkout: "Checkout", clean: "Clean", fuel: "Fuel Reimbursement" };
 
 function render() {
   const el = document.getElementById("tasks");
