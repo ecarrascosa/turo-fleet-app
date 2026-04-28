@@ -2,230 +2,87 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Laurel Heights — Today's Tasks</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleet Tasks</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #f8fafc;
-    color: #1e293b;
-    padding: 20px;
-    padding-bottom: 100px;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-  h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
-  .subtitle { color: #64748b; font-size: 0.875rem; margin-bottom: 24px; }
-  .section { margin-bottom: 24px; }
-  .section-title {
-    font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.05em; color: #94a3b8; margin-bottom: 10px; padding-left: 4px;
-  }
-  .task {
-    background: white; border: 1px solid #e2e8f0; border-radius: 14px;
-    padding: 16px; margin-bottom: 10px; transition: all 0.2s;
-  }
-  .task.done { opacity: 0.5; background: #f1f5f9; }
-  .task.done .task-title { text-decoration: line-through; }
-  .task-header { display: flex; align-items: flex-start; gap: 12px; }
-  .checkbox {
-    width: 24px; height: 24px; border-radius: 50%; border: 2px solid #cbd5e1;
-    flex-shrink: 0; cursor: pointer; display: flex; align-items: center;
-    justify-content: center; margin-top: 2px; transition: all 0.2s;
-  }
-  .task.done .checkbox { background: #22c55e; border-color: #22c55e; }
-  .task.done .checkbox::after { content: '✓'; color: white; font-size: 14px; font-weight: 700; }
-  .task-content { flex: 1; min-width: 0; }
-  .task-car { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-  .car-emoji { font-size: 1.3rem; }
-  .task-title { font-weight: 600; font-size: 0.95rem; color: #0f172a; }
-  .task-details { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
-  .tag {
-    font-size: 0.75rem; padding: 3px 10px; border-radius: 20px;
-    font-weight: 500; display: inline-flex; align-items: center; gap: 4px;
-  }
-  .tag-checkin { background: #dbeafe; color: #1d4ed8; }
-  .tag-oil { background: #fce7f3; color: #be185d; }
-  .tag-clean { background: #d1fae5; color: #065f46; }
-  .tag-dropoff { background: #ede9fe; color: #7c3aed; }
-  .task-note {
-    margin-top: 8px; font-size: 0.8rem; color: #64748b; line-height: 1.4;
-    padding-left: 2px;
-  }
-  .app-link {
-    display: block; text-align: center; background: #1e293b; color: white;
-    padding: 14px; border-radius: 12px; font-weight: 600; font-size: 0.95rem;
-    text-decoration: none; margin-top: 20px; transition: background 0.2s;
-  }
-  .app-link:active { background: #334155; }
-  .progress {
-    background: #e2e8f0; border-radius: 99px; height: 6px; margin-bottom: 20px; overflow: hidden;
-  }
-  .progress-bar {
-    background: #22c55e; height: 100%; border-radius: 99px; transition: width 0.3s; width: 0%;
-  }
-  .progress-text {
-    font-size: 0.8rem; color: #94a3b8; text-align: right; margin-bottom: 6px;
-  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 20px; }
+  .container { max-width: 500px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .date { color: #94a3b8; font-size: 0.85rem; margin-bottom: 20px; }
+  .task { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #1e293b; border-radius: 10px; margin-bottom: 8px; transition: opacity 0.3s; cursor: pointer; -webkit-user-select: none; user-select: none; }
+  .task.done { opacity: 0.4; }
+  .task.done .label { text-decoration: line-through; }
+  .check { width: 24px; height: 24px; border: 2px solid #475569; border-radius: 6px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .task.done .check { background: #22c55e; border-color: #22c55e; }
+  .check svg { display: none; }
+  .task.done .check svg { display: block; }
+  .info { flex: 1; }
+  .label { font-size: 1rem; font-weight: 500; }
+  .tag { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .tag.checkin { background: #1e3a5f; color: #60a5fa; }
+  .tag.checkout { background: #3b1f1f; color: #f87171; }
+  .tag.clean { background: #1a3329; color: #4ade80; }
+  .progress { margin-top: 20px; text-align: center; color: #64748b; font-size: 0.85rem; }
+  .bar { height: 4px; background: #1e293b; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .bar-fill { height: 100%; background: #22c55e; border-radius: 2px; transition: width 0.4s; }
 </style>
 </head>
 <body>
-
-<h1>📋 Laurel Heights Tasks</h1>
-<p class="subtitle">Wednesday, April 23 · For Eduardo's helper</p>
-
-<div class="progress-text"><span id="done-count">0</span> of <span id="total-count">0</span> done</div>
-<div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
-
-<div class="section">
-  <div class="section-title">📥 Check-In</div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Toyota Corolla 2015</span></div>
-        <div class="task-details">
-          <span class="tag tag-checkin">📥 Check in</span>
-        </div>
-      </div>
-    </div>
+<div class="container">
+  <h1>🚗 Fleet Tasks</h1>
+  <div class="date" id="date"></div>
+  <div id="tasks"></div>
+  <div class="progress">
+    <span id="count"></span>
+    <div class="bar"><div class="bar-fill" id="bar"></div></div>
   </div>
 </div>
-
-<div class="section">
-  <div class="section-title">🛢️ Oil Changes</div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🏎️</span><span class="task-title">Audi — Oil Change</span></div>
-        <div class="task-details">
-          <span class="tag tag-oil">🛢️ Oil change</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Mazda — Oil Change</span></div>
-        <div class="task-details">
-          <span class="tag tag-oil">🛢️ Oil change</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚙</span><span class="task-title">Kia Sportage — Oil Change</span></div>
-        <div class="task-details">
-          <span class="tag tag-oil">🛢️ Oil change</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚗</span><span class="task-title">Gray Elantra — Oil Change</span></div>
-        <div class="task-details">
-          <span class="tag tag-oil">🛢️ Oil change</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="section">
-  <div class="section-title">🧹 Clean & Prep for Upcoming Trips</div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">📅</span><span class="task-title">Clean & check in cars for Thursday trips</span></div>
-        <div class="task-details">
-          <span class="tag tag-clean">🧽 Clean</span>
-          <span class="tag tag-checkin">📥 Check in</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">📅</span><span class="task-title">Clean & check in cars for Friday trips</span></div>
-        <div class="task-details">
-          <span class="tag tag-clean">🧽 Clean</span>
-          <span class="tag tag-checkin">📥 Check in</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="section">
-  <div class="section-title">🔧 Drop-Off</div>
-
-  <div class="task" onclick="toggle(this)">
-    <div class="task-header">
-      <div class="checkbox"></div>
-      <div class="task-content">
-        <div class="task-car"><span class="car-emoji">🚙</span><span class="task-title">Drop X3 at Horizon Auto</span></div>
-        <div class="task-details">
-          <span class="tag tag-dropoff">🔧 Drop-off</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<a href="https://turo-fleet-app-theta.vercel.app" class="app-link" target="_blank">🔐 Open Fleet App (Lock / Unlock)</a>
-
 <script>
-function toggle(el) {
-  el.classList.toggle('done');
-  updateProgress();
-  save();
+const tasks = [
+  { car: "Rav4", type: "checkin" },
+  { car: "Blue Jetta", type: "checkin" },
+  { car: "2014 BMW X3", type: "checkin" },
+  { car: "Veloster", type: "checkin" },
+  { car: "Tiguan", type: "checkin" },
+  { car: "Wrangler", type: "clean" },
+  { car: "Gray Elantra", type: "checkin" },
+  { car: "Red Elantra", type: "checkout" },
+  { car: "White Jetta", type: "checkin" },
+  { car: "Mazda", type: "clean" },
+  { car: "Corolla 2019", type: "checkin" },
+];
+
+const KEY = "fleet-todo-" + new Date().toISOString().slice(0,10);
+let state = JSON.parse(localStorage.getItem(KEY) || "{}");
+
+const tagLabels = { checkin: "Clean & Check-in", checkout: "Checkout", clean: "Clean" };
+
+function render() {
+  const el = document.getElementById("tasks");
+  el.innerHTML = tasks.map((t, i) => {
+    const done = state[i] || false;
+    return `<div class="task ${done ? 'done' : ''}" onclick="toggle(${i})">
+      <div class="check"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="info">
+        <div class="label">${t.car}</div>
+        <span class="tag ${t.type}">${tagLabels[t.type]}</span>
+      </div>
+    </div>`;
+  }).join("");
+  const done = Object.values(state).filter(Boolean).length;
+  document.getElementById("count").textContent = `${done} / ${tasks.length} done`;
+  document.getElementById("bar").style.width = `${(done/tasks.length)*100}%`;
 }
 
-function updateProgress() {
-  const tasks = document.querySelectorAll('.task');
-  const done = document.querySelectorAll('.task.done');
-  document.getElementById('done-count').textContent = done.length;
-  document.getElementById('total-count').textContent = tasks.length;
-  const pct = tasks.length ? (done.length / tasks.length * 100) : 0;
-  document.getElementById('progress-bar').style.width = pct + '%';
+function toggle(i) {
+  state[i] = !state[i];
+  localStorage.setItem(KEY, JSON.stringify(state));
+  render();
 }
 
-function save() {
-  const states = [...document.querySelectorAll('.task')].map(t => t.classList.contains('done'));
-  localStorage.setItem('todo-0423', JSON.stringify(states));
-}
-
-function load() {
-  try {
-    const states = JSON.parse(localStorage.getItem('todo-0423') || '[]');
-    document.querySelectorAll('.task').forEach((t, i) => {
-      if (states[i]) t.classList.add('done');
-    });
-  } catch(e) {}
-  updateProgress();
-}
-
-load();
+document.getElementById("date").textContent = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+render();
 </script>
 </body>
 </html>
