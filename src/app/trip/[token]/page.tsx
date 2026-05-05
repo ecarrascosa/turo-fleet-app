@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { getCarPhoto } from '@/lib/car-icons';
 
 interface TripData {
@@ -44,7 +44,7 @@ function formatCountdown(ms: number): string {
 
 export default function GuestTripPage() {
   const { token } = useParams<{ token: string }>();
-  const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const searchParams = useSearchParams();
   const testMode = searchParams.get('test') === '1';
   const [data, setData] = useState<TripData | null>(null);
   const [loading, setLoading] = useState(true);
