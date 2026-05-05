@@ -131,14 +131,22 @@ export async function getReservationsByStatus(status: string): Promise<Reservati
 export async function matchCarId(
   vehicleModel: string,
   vehicleYear: string,
+  location?: string,
 ): Promise<string | undefined> {
   if (!vehicleModel || !vehicleYear) return undefined;
   const result = await sql`
-    SELECT whatsgps_car_id FROM vehicle_mappings
+    SELECT whatsgps_car_id, location FROM vehicle_mappings
     WHERE turo_model = ${vehicleModel} AND turo_year = ${vehicleYear}
   `;
   if (result.rows.length === 1) return result.rows[0].whatsgps_car_id;
-  return undefined; // 0 or multiple matches
+  if (result.rows.length > 1 && location) {
+    const locLower = location.toLowerCase();
+    const match = result.rows.find(
+      (r) => r.location && locLower.includes(r.location.toLowerCase())
+    );
+    if (match) return match.whatsgps_car_id;
+  }
+  return undefined; // 0 matches or ambiguous
 }
 
 /** Get all mapping options for a model+year (for duplicate resolution) */
@@ -163,7 +171,7 @@ export async function upsertFromEmail(
   // Handle cancellation
   if (email.type === 'cancelled') {
     const carId = email.vehicleModel
-      ? await matchCarId(email.vehicleModel, email.vehicleYear)
+      ? await matchCarId(email.vehicleModel, email.vehicleYear, email.location)
       : undefined;
     const token = generateToken();
     await sql`
@@ -204,7 +212,7 @@ export async function upsertFromEmail(
   // Handle modification — always try UPDATE first (don't rely on SELECT to find existing)
   if (email.type === 'modified') {
     const carId = email.vehicleModel
-      ? await matchCarId(email.vehicleModel, email.vehicleYear)
+      ? await matchCarId(email.vehicleModel, email.vehicleYear, email.location)
       : undefined;
 
     const updateResult = await sql`
@@ -225,7 +233,7 @@ export async function upsertFromEmail(
   }
 
   // Upsert (new booking or update existing)
-  const carId = await matchCarId(email.vehicleModel, email.vehicleYear);
+  const carId = await matchCarId(email.vehicleModel, email.vehicleYear, email.location);
   const token = generateToken();
 
   const currentTime = new Date();

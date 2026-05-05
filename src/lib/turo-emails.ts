@@ -140,6 +140,13 @@ export function parseTuroEmail(text: string): TuroEmail | null {
     if (changeMatch) changes = changeMatch[1].trim();
   }
 
+  // Location — "Location\n2707 Sacramento Street\nSan Francisco, CA"
+  let location: string | undefined;
+  const locMatch = text.match(/Location\s*\n\s*(.+?)\n\s*(?:San Francisco|SF|Oakland|Berkeley|Daly City|South San Francisco)/i);
+  if (locMatch) {
+    location = locMatch[1].trim();
+  }
+
   return {
     type,
     reservationId,
@@ -151,6 +158,7 @@ export function parseTuroEmail(text: string): TuroEmail | null {
     tripEnd: tripEnd || '',
     earnings,
     distanceIncluded,
+    location,
     guestMessage,
     changes,
   };
