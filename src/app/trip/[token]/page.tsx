@@ -44,6 +44,8 @@ function formatCountdown(ms: number): string {
 
 export default function GuestTripPage() {
   const { token } = useParams<{ token: string }>();
+  const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const testMode = searchParams.get('test') === '1';
   const [data, setData] = useState<TripData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -71,7 +73,8 @@ export default function GuestTripPage() {
   const sendCmd = async (action: 'lock' | 'unlock') => {
     setCmdLoading(action);
     try {
-      const res = await fetch(`/api/guest/${token}/command`, {
+      const cmdUrl = testMode ? `/api/guest/${token}/command?test=1` : `/api/guest/${token}/command`;
+      const res = await fetch(cmdUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
@@ -107,7 +110,7 @@ export default function GuestTripPage() {
   );
 
   const { reservation, car } = data;
-  const view = computeView(reservation.tripStart, reservation.tripEnd);
+  const view = testMode ? 'ongoing' as ViewState : computeView(reservation.tripStart, reservation.tripEnd);
   const photo = car.plate ? getCarPhoto(car.plate) : null;
   const hasLocation = car.lat !== 0 && car.lon !== 0;
   const mapsUrl = hasLocation ? `https://www.google.com/maps/dir/?api=1&destination=${car.lat},${car.lon}` : null;

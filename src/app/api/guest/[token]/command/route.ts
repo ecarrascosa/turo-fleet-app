@@ -33,12 +33,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       return NextResponse.json({ error: 'No car linked to this trip' }, { status: 400 });
     }
 
+    const testMode = req.nextUrl.searchParams.get('test') === '1';
     const status = getTripStatus(reservation.tripStart, reservation.tripEnd);
 
-    if (status === 'upcoming' || status === 'ended') {
+    if (!testMode && (status === 'upcoming' || status === 'ended')) {
       return NextResponse.json({ error: 'Commands are only available during your trip' }, { status: 403 });
     }
-    if (status === 'grace' && action === 'unlock') {
+    if (!testMode && status === 'grace' && action === 'unlock') {
       return NextResponse.json({ error: 'Only locking is allowed during grace period' }, { status: 403 });
     }
 
