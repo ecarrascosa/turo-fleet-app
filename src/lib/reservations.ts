@@ -127,20 +127,30 @@ export async function getReservationsByStatus(status: string): Promise<Reservati
   return result.rows.map(rowToReservation);
 }
 
-/** Match vehicle from Turo email to WhatsGPS car ID */
-export function matchCarId(
+/** Match vehicle from Turo email to WhatsGPS car ID via vehicle_mappings table */
+export async function matchCarId(
   vehicleModel: string,
   vehicleYear: string,
-  fleetCars: Array<{ carId: string; name: string }>
-): string | undefined {
-  const target = `${vehicleModel} ${vehicleYear}`.toLowerCase();
-  const exact = fleetCars.find(c => c.name.toLowerCase() === target);
-  if (exact) return exact.carId;
-  const partial = fleetCars.find(c =>
-    c.name.toLowerCase().includes(vehicleModel.toLowerCase()) &&
-    c.name.includes(vehicleYear)
-  );
-  return partial?.carId;
+): Promise<string | undefined> {
+  if (!vehicleModel || !vehicleYear) return undefined;
+  const result = await sql`
+    SELECT whatsgps_car_id FROM vehicle_mappings
+    WHERE turo_model = ${vehicleModel} AND turo_year = ${vehicleYear}
+  `;
+  if (result.rows.length === 1) return result.rows[0].whatsgps_car_id;
+  return undefined; // 0 or multiple matches
+}
+
+/** Get all mapping options for a model+year (for duplicate resolution) */
+export async function getDuplicateOptions(
+  vehicleModel: string,
+  vehicleYear: string
+): Promise<Array<{ carId: string; plate: string }>> {
+  const result = await sql`
+    SELECT whatsgps_car_id, plate FROM vehicle_mappings
+    WHERE turo_model = ${vehicleModel} AND turo_year = ${vehicleYear}
+  `;
+  return result.rows.map(r => ({ carId: r.whatsgps_car_id, plate: r.plate }));
 }
 
 /** Upsert a reservation from a parsed Turo email */
@@ -152,8 +162,8 @@ export async function upsertFromEmail(
 
   // Handle cancellation
   if (email.type === 'cancelled') {
-    const carId = fleetCars && email.vehicleModel
-      ? matchCarId(email.vehicleModel, email.vehicleYear, fleetCars)
+    const carId = email.vehicleModel
+      ? await matchCarId(email.vehicleModel, email.vehicleYear)
       : undefined;
     const token = generateToken();
     await sql`
@@ -193,8 +203,8 @@ export async function upsertFromEmail(
 
   // Handle modification — always try UPDATE first (don't rely on SELECT to find existing)
   if (email.type === 'modified') {
-    const carId = fleetCars && email.vehicleModel
-      ? matchCarId(email.vehicleModel, email.vehicleYear, fleetCars)
+    const carId = email.vehicleModel
+      ? await matchCarId(email.vehicleModel, email.vehicleYear)
       : undefined;
 
     const updateResult = await sql`
@@ -215,7 +225,7 @@ export async function upsertFromEmail(
   }
 
   // Upsert (new booking or update existing)
-  const carId = fleetCars ? matchCarId(email.vehicleModel, email.vehicleYear, fleetCars) : undefined;
+  const carId = await matchCarId(email.vehicleModel, email.vehicleYear);
   const token = generateToken();
 
   const currentTime = new Date();
