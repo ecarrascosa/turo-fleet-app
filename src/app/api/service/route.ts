@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sql } from '@vercel/postgres';
 import fleetData from '@/data/fleet.json';
 import odometerData from '@/data/odometer.json';
 
 const SERVICE_INTERVAL = 7000;
-
-// In-memory overrides (survive warm invocations)
-const odoOverrides: Record<string, number> = {};
-const serviceOverrides: Record<string, number> = {};
 
 interface FleetCar {
   car: string;
@@ -14,17 +11,52 @@ interface FleetCar {
   lastService: number | null;
 }
 
-function getCurrentOdo(plate: string): number | null {
-  // Priority: manual override > Turo CSV data
-  if (odoOverrides[plate]) return odoOverrides[plate];
+/** Create tables if they don't exist */
+async function initServiceDB() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS service_records (
+      id SERIAL PRIMARY KEY,
+      plate VARCHAR(20) NOT NULL,
+      mileage INTEGER NOT NULL,
+      serviced_at TIMESTAMPTZ DEFAULT NOW(),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_service_plate ON service_records(plate)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS odometer_readings (
+      plate VARCHAR(20) PRIMARY KEY,
+      mileage INTEGER NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+}
+
+/** Get the most recent service mileage for a plate from DB, falling back to fleet.json */
+async function getLastService(plate: string, fallback: number | null): Promise<number | null> {
+  const result = await sql`
+    SELECT mileage FROM service_records WHERE plate = ${plate}
+    ORDER BY serviced_at DESC LIMIT 1
+  `;
+  if (result.rows.length > 0) return result.rows[0].mileage;
+  return fallback;
+}
+
+/** Get current odometer: DB override > Turo CSV static data */
+async function getCurrentOdo(plate: string): Promise<number | null> {
+  const result = await sql`
+    SELECT mileage FROM odometer_readings WHERE plate = ${plate}
+  `;
+  if (result.rows.length > 0) return result.rows[0].mileage;
   const csvOdo = (odometerData as Record<string, number>)[plate];
   return csvOdo ?? null;
 }
 
-function getServiceStatus(cars: FleetCar[]) {
-  return cars.map(car => {
-    const lastService = serviceOverrides[car.plate] ?? car.lastService;
-    const currentOdo = getCurrentOdo(car.plate);
+async function getServiceStatus(cars: FleetCar[]) {
+  const results = await Promise.all(cars.map(async car => {
+    const lastService = await getLastService(car.plate, car.lastService);
+    const currentOdo = await getCurrentOdo(car.plate);
     const nextService = lastService != null ? lastService + SERVICE_INTERVAL : null;
     const remaining = (nextService != null && currentOdo != null) ? nextService - currentOdo : null;
 
@@ -46,7 +78,9 @@ function getServiceStatus(cars: FleetCar[]) {
       remaining,
       status,
     };
-  }).sort((a, b) => {
+  }));
+
+  return results.sort((a, b) => {
     const order = { 'overdue': 0, 'due-soon': 1, 'ok': 2, 'no-data': 3 };
     if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
     if (a.remaining != null && b.remaining != null) return a.remaining - b.remaining;
@@ -56,7 +90,8 @@ function getServiceStatus(cars: FleetCar[]) {
 }
 
 export async function GET() {
-  const status = getServiceStatus(fleetData as FleetCar[]);
+  await initServiceDB();
+  const status = await getServiceStatus(fleetData as FleetCar[]);
   const overdue = status.filter(c => c.status === 'overdue').length;
   const dueSoon = status.filter(c => c.status === 'due-soon').length;
 
@@ -64,10 +99,12 @@ export async function GET() {
     serviceInterval: SERVICE_INTERVAL,
     summary: { total: status.length, overdue, dueSoon },
     cars: status,
+    storage: 'postgres',
   });
 }
 
 export async function POST(request: NextRequest) {
+  await initServiceDB();
   const body = await request.json();
   const { action } = body;
 
@@ -76,7 +113,11 @@ export async function POST(request: NextRequest) {
     if (!plate || !mileage) {
       return NextResponse.json({ error: 'plate and mileage required' }, { status: 400 });
     }
-    odoOverrides[plate] = Number(mileage);
+    await sql`
+      INSERT INTO odometer_readings (plate, mileage, updated_at)
+      VALUES (${plate}, ${Number(mileage)}, NOW())
+      ON CONFLICT (plate) DO UPDATE SET mileage = ${Number(mileage)}, updated_at = NOW()
+    `;
     return NextResponse.json({ success: true, plate, mileage: Number(mileage) });
   }
 
@@ -85,7 +126,10 @@ export async function POST(request: NextRequest) {
     if (!plate || mileage == null) {
       return NextResponse.json({ error: 'plate and mileage required' }, { status: 400 });
     }
-    serviceOverrides[plate] = Number(mileage);
+    await sql`
+      INSERT INTO service_records (plate, mileage, serviced_at)
+      VALUES (${plate}, ${Number(mileage)}, NOW())
+    `;
     return NextResponse.json({ success: true, plate, newLastService: Number(mileage) });
   }
 
@@ -97,7 +141,11 @@ export async function POST(request: NextRequest) {
     let count = 0;
     for (const [plate, mileage] of Object.entries(data)) {
       if (typeof mileage === 'number' && mileage > 0) {
-        odoOverrides[plate] = mileage;
+        await sql`
+          INSERT INTO odometer_readings (plate, mileage, updated_at)
+          VALUES (${plate}, ${mileage}, NOW())
+          ON CONFLICT (plate) DO UPDATE SET mileage = ${mileage}, updated_at = NOW()
+        `;
         count++;
       }
     }

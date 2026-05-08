@@ -34,6 +34,8 @@ export default function ServicePage() {
   const [filter, setFilter] = useState<'all' | 'overdue' | 'due-soon' | 'ok' | 'no-data'>('all');
   const [search, setSearch] = useState('');
   const [csvPreview, setCsvPreview] = useState<Record<string, number> | null>(null);
+  const [servicingPlate, setServicingPlate] = useState<string | null>(null);
+  const [serviceMileage, setServiceMileage] = useState('');
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -139,17 +141,25 @@ export default function ServicePage() {
     setSubmitting(false);
   };
 
-  const markServiced = async (plate: string, currentOdo: number | null) => {
-    const mi = currentOdo || Number(prompt('Enter current mileage:'));
-    if (!mi) return;
+  const startServicing = (plate: string, currentOdo: number | null) => {
+    setServicingPlate(plate);
+    setServiceMileage(currentOdo != null ? String(currentOdo) : '');
+  };
+
+  const confirmService = async () => {
+    if (!servicingPlate) return;
+    const mi = Number(serviceMileage);
+    if (!mi || mi <= 0) { showToast('❌ Enter a valid mileage', 'error'); return; }
     try {
       const res = await fetch('/api/service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update-service', plate, mileage: mi }),
+        body: JSON.stringify({ action: 'update-service', plate: servicingPlate, mileage: mi }),
       });
       if (res.ok) {
         showToast('✅ Marked as serviced');
+        setServicingPlate(null);
+        setServiceMileage('');
         fetchData();
       }
     } catch {
@@ -309,13 +319,37 @@ export default function ServicePage() {
                   </div>
                 )}
 
-                {(car.status === 'overdue' || car.status === 'due-soon') && (
+                {(car.status === 'overdue' || car.status === 'due-soon') && servicingPlate !== car.plate && (
                   <button
-                    onClick={() => markServiced(car.plate, car.currentOdo)}
+                    onClick={() => startServicing(car.plate, car.currentOdo)}
                     className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-xs font-semibold py-2 rounded-lg transition-colors"
                   >
                     ✅ Mark as Serviced
                   </button>
+                )}
+
+                {servicingPlate === car.plate && (
+                  <div className="space-y-2 mt-1">
+                    <label className="text-xs text-gray-500">Mileage at oil change:</label>
+                    <input
+                      type="number"
+                      value={serviceMileage}
+                      onChange={e => setServiceMileage(e.target.value)}
+                      placeholder="Enter mileage"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setServicingPlate(null); setServiceMileage(''); }}
+                        className="flex-1 py-2 text-xs font-medium rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                      >Cancel</button>
+                      <button
+                        onClick={confirmService}
+                        className="flex-1 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-xs font-semibold py-2 rounded-lg transition-colors"
+                      >Confirm</button>
+                    </div>
+                  </div>
                 )}
               </div>
             );
