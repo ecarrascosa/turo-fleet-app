@@ -38,7 +38,7 @@ export function parseTuroEmail(text: string): TuroEmail | null {
     type = 'booked';
   } else if (/has cancelled their trip/i.test(text) || /Turo (?:has )?cancelled/i.test(text) || /You['']ve cancelled/i.test(text)) {
     type = 'cancelled';
-  } else if (/has changed their trip/i.test(text)) {
+  } else if (/has changed their trip/i.test(text) || /confirmed .+['']s change request/i.test(text) || /has requested a change to their trip/i.test(text)) {
     type = 'modified';
   } else if (/has sent you a message/i.test(text)) {
     type = 'message';
@@ -58,6 +58,8 @@ export function parseTuroEmail(text: string): TuroEmail | null {
     /(\w+) has cancelled/i,
     /cancelled (\w+)[''']s trip/i,
     /(\w+) has changed/i,
+    /confirmed (.+?)['']s change request/i,
+    /(\w[\w ]+?) has requested a change to their trip/i,
     /(\w+) has sent you/i,
     /booked by (\w+)/i,
     /requested by (\w+)/i,
@@ -83,9 +85,11 @@ export function parseTuroEmail(text: string): TuroEmail | null {
     vehicleYear = vMatch[2];
   }
 
-  // Pattern 2: "trip with your [Vehicle] is booked" — extract ONLY up to "is booked"
+  // Pattern 2: "trip with your [Vehicle] is booked" or "change request with your [Vehicle]"
   if (!vehicleModel) {
-    const subjectMatch = text.match(/trip with your\s+(.+?)\s+is\s+booked/i);
+    const subjectMatch = text.match(/(?:trip with your|change request with your)\s+(.+?)\s+(?:is\s+booked|is now confirmed)/i)
+      || text.match(/trip with your\s+(.+?)\s+is\s+booked/i)
+      || text.match(/change request with your\s+(.+?)(?:\s+is\b|\s*$)/im);
     if (subjectMatch) {
       const vehicleStr = subjectMatch[1].trim();
       // Try to extract year from the vehicle string
@@ -109,8 +113,12 @@ export function parseTuroEmail(text: string): TuroEmail | null {
   }
 
   // Trip dates — "Trip start: 3/17/26 6:30 pm"
-  const tripStart = parseTripDate(text, 'Trip start');
-  const tripEnd = parseTripDate(text, 'Trip end');
+  // Also handle "New trip start on Wednesday, May 13, 2026, 5:30 AM" from change requests
+  let tripStart = parseTripDate(text, 'Trip start');
+  let tripEnd = parseTripDate(text, 'Trip end');
+
+  if (!tripStart) tripStart = parseNewTripDate(text, 'start');
+  if (!tripEnd) tripEnd = parseNewTripDate(text, 'end');
 
   // Earnings — "You earn: $34.54" or "You'll earn $34.54"
   let earnings: number | undefined;
@@ -253,6 +261,37 @@ function parseTripDate(text: string, label: string): string | undefined {
   }
 
   return undefined;
+}
+
+/**
+ * Parse "New trip start on Wednesday, May 13, 2026, 5:30 AM" format
+ * from change request emails.
+ */
+const MONTH_MAP: Record<string, number> = {
+  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
+  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
+};
+
+function parseNewTripDate(text: string, which: 'start' | 'end'): string | undefined {
+  // "New trip start on Wednesday, May 13, 2026, 5:30 AM"
+  const pattern = new RegExp(
+    `New trip ${which} on \\w+,\\s*(\\w+)\\s+(\\d{1,2}),\\s*(\\d{4}),\\s*(\\d{1,2}):(\\d{2})\\s*(AM|PM)`,
+    'i'
+  );
+  const m = text.match(pattern);
+  if (!m) return undefined;
+
+  const month = MONTH_MAP[m[1].toLowerCase()];
+  if (!month) return undefined;
+  const day = parseInt(m[2]);
+  const year = parseInt(m[3]);
+  let hours = parseInt(m[4]);
+  const minutes = parseInt(m[5]);
+  const ampm = m[6].toUpperCase();
+  if (ampm === 'PM' && hours !== 12) hours += 12;
+  if (ampm === 'AM' && hours === 12) hours = 0;
+
+  return toPacificISO(year, month, day, hours, minutes);
 }
 
 export function parseTuroEmails(rawText: string): TuroEmail[] {
