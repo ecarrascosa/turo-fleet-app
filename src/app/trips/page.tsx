@@ -14,7 +14,7 @@ interface Reservation {
   renterToken?: string;
 }
 
-type Tab = 'active' | 'past';
+type Tab = 'active' | 'in-progress' | 'past';
 type EventType = 'pickup' | 'dropoff';
 
 interface DisplayEntry {
@@ -192,9 +192,10 @@ export default function TripsPage() {
     return start;
   }, []);
 
-  const { activeEntries, past } = useMemo(() => {
+  const { activeEntries, inProgressEntries, past } = useMemo(() => {
     const now = new Date();
-    const entries: DisplayEntry[] = [];
+    const active: DisplayEntry[] = [];
+    const inProgress: DisplayEntry[] = [];
     const p: Reservation[] = [];
 
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -208,42 +209,38 @@ export default function TripsPage() {
       }
       const start = new Date(r.tripStart);
       const end = new Date(r.tripEnd);
-      const startedToday = start >= todayStart && start < todayEnd;
-      const endedToday = end >= todayStart && end < todayEnd;
 
-      if (now <= end || startedToday || endedToday) {
-        if (now < start) {
-          // Upcoming: show both pickup and dropoff
-          entries.push({ reservation: r, eventType: 'pickup', eventTime: start });
-          entries.push({ reservation: r, eventType: 'dropoff', eventTime: end });
-        } else if (startedToday) {
-          // Started today: show both
-          entries.push({ reservation: r, eventType: 'pickup', eventTime: start });
-          entries.push({ reservation: r, eventType: 'dropoff', eventTime: end });
-        } else {
-          // Already in progress (started in the past): only show dropoff
-          entries.push({ reservation: r, eventType: 'dropoff', eventTime: end });
-        }
-      } else {
+      if (now > end) {
+        // Trip has ended
         p.push(r);
+      } else if (now >= start && now <= end) {
+        // In progress — trip has started but not ended
+        inProgress.push({ reservation: r, eventType: 'dropoff', eventTime: end });
+      } else {
+        // Upcoming — trip hasn't started yet
+        active.push({ reservation: r, eventType: 'pickup', eventTime: start });
+        active.push({ reservation: r, eventType: 'dropoff', eventTime: end });
       }
     }
 
-    // Sort entries by date (day), then by event time within each day
-    entries.sort((a, b) => {
+    // Sort active entries by date (day), then by event time within each day
+    active.sort((a, b) => {
       const aDay = new Date(a.eventTime.toDateString()).getTime();
       const bDay = new Date(b.eventTime.toDateString()).getTime();
       if (aDay !== bDay) return aDay - bDay;
       return a.eventTime.getTime() - b.eventTime.getTime();
     });
 
+    // In progress: sort by ending soonest first
+    inProgress.sort((a, b) => a.eventTime.getTime() - b.eventTime.getTime());
+
     // Past: most recent first
     p.sort((a, b) => new Date(b.tripEnd).getTime() - new Date(a.tripEnd).getTime());
 
-    return { activeEntries: entries, past: p };
-  }, [reservations, getGroupDate]);
+    return { activeEntries: active, inProgressEntries: inProgress, past: p };
+  }, [reservations]);
 
-  const counts = { active: activeEntries.length, past: past.length };
+  const counts = { active: activeEntries.length, 'in-progress': inProgressEntries.length, past: past.length };
 
   return (
     <div className="h-full flex">
@@ -291,34 +288,85 @@ export default function TripsPage() {
 
           {/* Tabs */}
           <div className="flex bg-gray-200 rounded-lg p-0.5 mb-6">
-            {(['active', 'past'] as Tab[]).map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition flex items-center justify-center gap-2 ${
-                  tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-                <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${
-                  tab === t ? 'bg-gray-100 text-gray-700' : 'bg-gray-300/50 text-gray-500'
-                }`}>
-                  {counts[t]}
-                </span>
-              </button>
-            ))}
+            {(['active', 'in-progress', 'past'] as Tab[]).map(t => {
+              const label = t === 'in-progress' ? 'In Progress' : t.charAt(0).toUpperCase() + t.slice(1);
+              return (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition flex items-center justify-center gap-2 ${
+                    tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {label}
+                  <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${
+                    tab === t ? 'bg-gray-100 text-gray-700' : 'bg-gray-300/50 text-gray-500'
+                  }`}>
+                    {counts[t]}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {loading ? (
             <div className="text-gray-400 animate-pulse py-16 text-center">Loading trips...</div>
-          ) : (tab === 'active' ? activeEntries.length : past.length) === 0 ? (
+          ) : counts[tab] === 0 ? (
             <div className="text-center py-16">
               <div className="text-4xl mb-3">
-                {tab === 'active' ? '🗓️' : '📭'}
+                {tab === 'active' ? '🗓️' : tab === 'in-progress' ? '🚗' : '📭'}
               </div>
               <p className="text-gray-500">
-                {tab === 'active' ? 'No active trips' : 'No past trips'}
+                {tab === 'active' ? 'No upcoming trips' : tab === 'in-progress' ? 'No trips in progress' : 'No past trips'}
               </p>
+            </div>
+          ) : tab === 'in-progress' ? (
+            <div className="space-y-4">
+              {inProgressEntries.map((entry) => {
+                const res = entry.reservation;
+                const end = new Date(res.tripEnd);
+                const now = new Date();
+                const hoursLeft = Math.max(0, Math.round((end.getTime() - now.getTime()) / 3600000));
+                const endTimeStr = end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                const endDateStr = end.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+                return (
+                  <div key={res.reservationId} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-blue-100 text-blue-700 border-blue-200">🚗 In Progress</span>
+                          <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-red-100 text-red-700 border-red-200">Ends {endDateStr} at {endTimeStr}</span>
+                          {hoursLeft <= 24 && <span className="text-[11px] text-amber-600 font-medium">⏰ {hoursLeft}h left</span>}
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">👤</span>
+                          <h3 className="font-bold text-gray-900">{res.guestName}</h3>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">🚗 {res.vehicleYear} {res.vehicleModel}</p>
+                        {res.renterToken && (
+                          <div className="mt-3 flex items-center gap-2">
+                            <div className="flex-1 min-w-0 bg-gray-50 rounded-lg border border-gray-200 px-3 py-2 flex items-center gap-2">
+                              <span className="text-cyan-500 text-sm">🔗</span>
+                              <span className="text-xs text-gray-500 truncate flex-1">turo-fleet-app-theta.vercel.app/trip/{res.renterToken}</span>
+                              <button
+                                onClick={() => copyGuestLink(res.renterToken!, res.reservationId)}
+                                className={`shrink-0 px-3 py-1 rounded-md text-xs font-medium transition-all ${copiedId === res.reservationId ? 'bg-green-100 text-green-700' : 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100'}`}
+                              >{copiedId === res.reservationId ? '✓ Copied' : 'Copy'}</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {res.carId && (
+                        <div className="flex gap-2 sm:flex-col sm:gap-2">
+                          <CommandButton icon={<LockOpen />} color="text-green-600" borderColor="border-green-300 hover:border-green-500" onClick={() => sendCommand('unlock-restore', res.carId!)} loading={!!actionLoading[`${res.carId}-unlock-restore`]} title="Unlock + Enable Engine" />
+                          <CommandButton icon={<LockClosed />} color="text-amber-600" borderColor="border-amber-300 hover:border-amber-500" onClick={() => sendCommand('lock-kill', res.carId!)} loading={!!actionLoading[`${res.carId}-lock-kill`]} title="Lock + Kill Engine" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : tab === 'active' ? (
             <div className="space-y-4">
