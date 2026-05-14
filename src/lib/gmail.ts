@@ -155,17 +155,22 @@ export async function fetchTuroEmails(maxResults = 20, afterDate?: string): Prom
 function extractBody(payload: any): string {
   if (!payload) return '';
   if (payload.body?.data) {
+    // Single-part message: check mimeType
+    if (payload.mimeType === 'text/html') {
+      return stripHtml(Buffer.from(payload.body.data, 'base64url').toString('utf-8'));
+    }
     return Buffer.from(payload.body.data, 'base64url').toString('utf-8');
   }
   if (payload.parts) {
-    const textPart = payload.parts.find((p: any) => p.mimeType === 'text/plain');
-    if (textPart?.body?.data) {
-      return Buffer.from(textPart.body.data, 'base64url').toString('utf-8');
-    }
+    // Prefer HTML — it contains location data that text/plain strips out
     const htmlPart = payload.parts.find((p: any) => p.mimeType === 'text/html');
     if (htmlPart?.body?.data) {
       const html = Buffer.from(htmlPart.body.data, 'base64url').toString('utf-8');
       return stripHtml(html);
+    }
+    const textPart = payload.parts.find((p: any) => p.mimeType === 'text/plain');
+    if (textPart?.body?.data) {
+      return Buffer.from(textPart.body.data, 'base64url').toString('utf-8');
     }
     for (const part of payload.parts) {
       const body = extractBody(part);
