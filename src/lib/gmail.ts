@@ -99,6 +99,7 @@ export interface GmailMessage {
   from: string;
   date: string;
   body: string;
+  htmlBody?: string; // stripped HTML body (contains location data)
 }
 
 /**
@@ -144,36 +145,47 @@ export async function fetchTuroEmails(maxResults = 20, afterDate?: string): Prom
     const subject = headers.find((h: any) => h.name === 'Subject')?.value || '';
     const from = headers.find((h: any) => h.name === 'From')?.value || '';
     const date = headers.find((h: any) => h.name === 'Date')?.value || '';
-    const body = extractBody(detail.payload);
-    messages.push({ id: msg.id, subject, from, date, body });
+    const body = extractTextBody(detail.payload);
+    const htmlBody = extractHtmlBody(detail.payload);
+    messages.push({ id: msg.id, subject, from, date, body: body || htmlBody || '', htmlBody });
   }
 
   messages.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   return messages;
 }
 
-function extractBody(payload: any): string {
+/** Extract text/plain body */
+function extractTextBody(payload: any): string {
   if (!payload) return '';
-  if (payload.body?.data) {
-    // Single-part message: check mimeType
-    if (payload.mimeType === 'text/html') {
-      return stripHtml(Buffer.from(payload.body.data, 'base64url').toString('utf-8'));
-    }
+  if (payload.mimeType === 'text/plain' && payload.body?.data) {
     return Buffer.from(payload.body.data, 'base64url').toString('utf-8');
   }
   if (payload.parts) {
-    // Prefer HTML — it contains location data that text/plain strips out
-    const htmlPart = payload.parts.find((p: any) => p.mimeType === 'text/html');
-    if (htmlPart?.body?.data) {
-      const html = Buffer.from(htmlPart.body.data, 'base64url').toString('utf-8');
-      return stripHtml(html);
-    }
     const textPart = payload.parts.find((p: any) => p.mimeType === 'text/plain');
     if (textPart?.body?.data) {
       return Buffer.from(textPart.body.data, 'base64url').toString('utf-8');
     }
     for (const part of payload.parts) {
-      const body = extractBody(part);
+      const body = extractTextBody(part);
+      if (body) return body;
+    }
+  }
+  return '';
+}
+
+/** Extract and strip HTML body */
+function extractHtmlBody(payload: any): string {
+  if (!payload) return '';
+  if (payload.mimeType === 'text/html' && payload.body?.data) {
+    return stripHtml(Buffer.from(payload.body.data, 'base64url').toString('utf-8'));
+  }
+  if (payload.parts) {
+    const htmlPart = payload.parts.find((p: any) => p.mimeType === 'text/html');
+    if (htmlPart?.body?.data) {
+      return stripHtml(Buffer.from(htmlPart.body.data, 'base64url').toString('utf-8'));
+    }
+    for (const part of payload.parts) {
+      const body = extractHtmlBody(part);
       if (body) return body;
     }
   }

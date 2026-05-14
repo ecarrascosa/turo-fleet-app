@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 
     for (const email of emails) {
       try {
-        const parsed = parseTuroEmail(email.body || email.subject);
+        const parsed = parseTuroEmail(email.body || email.subject, email.htmlBody);
         if (parsed) {
           await upsertFromEmail(parsed, fleetCars);
           processed++;

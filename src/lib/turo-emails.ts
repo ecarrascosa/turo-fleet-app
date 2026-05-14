@@ -28,7 +28,7 @@ export interface TuroEmail {
   changes?: string;
 }
 
-export function parseTuroEmail(text: string): TuroEmail | null {
+export function parseTuroEmail(text: string, htmlBody?: string): TuroEmail | null {
   if (!text) return null;
   text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
@@ -148,11 +148,20 @@ export function parseTuroEmail(text: string): TuroEmail | null {
     if (changeMatch) changes = changeMatch[1].trim();
   }
 
-  // Location — may have multiple blank lines between "Location" and the address in HTML-stripped body
+  // Location — check htmlBody first (has location data), then fall back to text
   let location: string | undefined;
-  const locMatch = text.match(/Location\s*[\n\s]*?(\d+\s+.+?)[\n\s]*(?:San Francisco|SF|Oakland|Berkeley|Daly City|South San Francisco)/i);
+  const locSource = htmlBody || text;
+  // HTML-stripped body may have blank lines between "Location" and address
+  const locMatch = locSource.match(/Location\s*[\n\s]*?(\d+\s+.+?)[\n\s]*(?:San Francisco|SF|Oakland|Berkeley|Daly City|South San Francisco)/i);
   if (locMatch) {
     location = locMatch[1].trim();
+  }
+  // Also try plain text format
+  if (!location) {
+    const locMatch2 = text.match(/Location\s*\n\s*(.+?)\n\s*(?:San Francisco|SF|Oakland|Berkeley|Daly City|South San Francisco)/i);
+    if (locMatch2) {
+      location = locMatch2[1].trim();
+    }
   }
 
   return {
