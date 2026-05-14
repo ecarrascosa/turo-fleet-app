@@ -66,10 +66,20 @@ export async function GET(req: NextRequest) {
   const body = extractText(d.payload);
   const parsed = parseTuroEmail(body);
 
+  // Also extract HTML body
+  function findHtml(p: any): string {
+    if (p.mimeType === 'text/html' && p.body?.data) return Buffer.from(p.body.data, 'base64url').toString('utf-8');
+    if (p.parts) for (const c of p.parts) { const r = findHtml(c); if (r) return r; }
+    return '';
+  }
+  const rawHtml = findHtml(d.payload);
+  const htmlText = rawHtml.replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|tr|td|li)[^>]*>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/&#8217;/g, "'").replace(/&#8230;/g, '...').replace(/\n{3,}/g, '\n\n');
+
   return NextResponse.json({
     subject,
     bodyLength: body.length,
     bodyPreview: body.substring(0, 2000),
+    htmlBodyPreview: htmlText.substring(0, 4000),
     parsed,
   });
 }
