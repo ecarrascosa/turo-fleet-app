@@ -38,7 +38,7 @@ export function parseTuroEmail(text: string, htmlBody?: string): TuroEmail | nul
     type = 'booked';
   } else if (/has cancelled their trip/i.test(text) || /Turo (?:has )?cancelled/i.test(text) || /You['']ve cancelled/i.test(text)) {
     type = 'cancelled';
-  } else if (/has changed their trip/i.test(text) || /confirmed .+[''']s change request/i.test(text) || /has requested a change to their trip/i.test(text)) {
+  } else if (/has changed their trip/i.test(text) || /confirmed .+['\u2018\u2019]s change request/i.test(text) || /has requested a change to their trip/i.test(text)) {
     type = 'modified';
   } else if (/has sent you a message/i.test(text)) {
     type = 'message';
@@ -58,7 +58,7 @@ export function parseTuroEmail(text: string, htmlBody?: string): TuroEmail | nul
     /(\w+) has cancelled/i,
     /cancelled (\w+)[''']s trip/i,
     /(\w+) has changed/i,
-    /confirmed (.+?)[''']s change request/i,
+    /confirmed (.+?)['\u2018\u2019]s change request/i,
     /(\w[\w ]+?) has requested a change to their trip/i,
     /(\w+) has sent you/i,
     /booked by (\w+)/i,
