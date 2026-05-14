@@ -350,7 +350,8 @@ export default function TripsPage() {
                   if (entry.eventType === 'pickup') {
                     if (now >= start) {
                       // Already started
-                      tag = <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">In Progress</span>;
+                      const startTimeStr = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                      tag = <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">In Progress · Started at {startTimeStr}</span>;
                     } else {
                       tag = <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border bg-green-100 text-green-700 border-green-200">Starting at {timeStr}</span>;
                     }
