@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
     subject,
     bodyLength: body.length,
     bodyPreview: body.substring(0, 2000),
-    htmlBodyPreview: htmlText.substring(0, 4000),
+    htmlBodyPreview: htmlText.substring(0, 15000),
     parsed,
   });
 }
