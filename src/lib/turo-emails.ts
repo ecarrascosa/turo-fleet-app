@@ -148,9 +148,9 @@ export function parseTuroEmail(text: string): TuroEmail | null {
     if (changeMatch) changes = changeMatch[1].trim();
   }
 
-  // Location — "Location\n2707 Sacramento Street\nSan Francisco, CA"
+  // Location — may have multiple blank lines between "Location" and the address in HTML-stripped body
   let location: string | undefined;
-  const locMatch = text.match(/Location\s*\n\s*(.+?)\n\s*(?:San Francisco|SF|Oakland|Berkeley|Daly City|South San Francisco)/i);
+  const locMatch = text.match(/Location\s*[\n\s]*?(\d+\s+.+?)[\n\s]*(?:San Francisco|SF|Oakland|Berkeley|Daly City|South San Francisco)/i);
   if (locMatch) {
     location = locMatch[1].trim();
   }
