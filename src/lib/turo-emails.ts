@@ -282,25 +282,45 @@ const MONTH_MAP: Record<string, number> = {
 };
 
 function parseNewTripDate(text: string, which: 'start' | 'end'): string | undefined {
-  // "New trip start on Wednesday, May 13, 2026, 5:30 AM"
-  const pattern = new RegExp(
+  // Format 1: "New trip start on Wednesday, May 13, 2026, 5:30 AM"
+  const pattern1 = new RegExp(
     `New trip ${which} on \\w+,\\s*(\\w+)\\s+(\\d{1,2}),\\s*(\\d{4}),\\s*(\\d{1,2}):(\\d{2})\\s*(AM|PM)`,
     'i'
   );
-  const m = text.match(pattern);
-  if (!m) return undefined;
+  const m1 = text.match(pattern1);
+  if (m1) {
+    const month = MONTH_MAP[m1[1].toLowerCase()];
+    if (!month) return undefined;
+    const day = parseInt(m1[2]);
+    const year = parseInt(m1[3]);
+    let hours = parseInt(m1[4]);
+    const minutes = parseInt(m1[5]);
+    const ampm = m1[6].toUpperCase();
+    if (ampm === 'PM' && hours !== 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+    return toPacificISO(year, month, day, hours, minutes);
+  }
 
-  const month = MONTH_MAP[m[1].toLowerCase()];
-  if (!month) return undefined;
-  const day = parseInt(m[2]);
-  const year = parseInt(m[3]);
-  let hours = parseInt(m[4]);
-  const minutes = parseInt(m[5]);
-  const ampm = m[6].toUpperCase();
-  if (ampm === 'PM' && hours !== 12) hours += 12;
-  if (ampm === 'AM' && hours === 12) hours = 0;
+  // Format 2: "New trip start on Tue 19 May 7:00 a.m." (abbreviated, no year — assume current year)
+  const pattern2 = new RegExp(
+    `New trip ${which} on \\w+\\s+(\\d{1,2})\\s+(\\w+)\\s+(\\d{1,2}):(\\d{2})\\s*([ap]\\.?m\\.?)`,
+    'i'
+  );
+  const m2 = text.match(pattern2);
+  if (m2) {
+    const day = parseInt(m2[1]);
+    const month = MONTH_MAP[m2[2].toLowerCase()];
+    if (!month) return undefined;
+    const year = new Date().getFullYear();
+    let hours = parseInt(m2[3]);
+    const minutes = parseInt(m2[4]);
+    const ampm = m2[5].replace(/\./g, '').toUpperCase();
+    if (ampm === 'PM' && hours !== 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+    return toPacificISO(year, month, day, hours, minutes);
+  }
 
-  return toPacificISO(year, month, day, hours, minutes);
+  return undefined;
 }
 
 export function parseTuroEmails(rawText: string): TuroEmail[] {
