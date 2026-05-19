@@ -107,14 +107,14 @@ export default function ServicePage() {
         if (checkout > 0) (allReadings[plate] ??= []).push(checkout);
       }
       // For each car, pick the highest reading that isn't an obvious outlier
-      // Outlier = more than 1.5x the second-highest reading (when 3+ readings exist)
+      // Outlier = more than 2x the second-highest unique reading (catches typos like 314k vs 147k)
       const plateMap: Record<string, number> = {};
       for (const [plate, readings] of Object.entries(allReadings)) {
         if (readings.length === 0) continue;
-        const sorted = [...readings].sort((a, b) => b - a);
-        let best = sorted[0];
-        if (sorted.length >= 3 && sorted[1] > 0 && best > sorted[1] * 1.5) {
-          best = sorted[1]; // skip the outlier, use second highest
+        const unique = [...new Set(readings)].sort((a, b) => b - a);
+        let best = unique[0];
+        if (unique.length >= 2 && best > unique[1] * 2) {
+          best = unique[1]; // skip the outlier
         }
         plateMap[plate] = Math.round(best);
       }
