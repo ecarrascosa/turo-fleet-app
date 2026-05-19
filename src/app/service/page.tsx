@@ -66,83 +66,27 @@ export default function ServicePage() {
     return cars;
   }, [data, filter, search]);
 
-  const handleCsvFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      if (!text) return;
-      const lines = text.split('\n');
-      const header = lines[0]?.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-      if (!header) return;
-      const vehicleIdx = header.findIndex(h => h.toLowerCase().includes('vehicle'));
-      const checkinIdx = header.findIndex(h => h.toLowerCase().includes('check-in odometer'));
-      const checkoutIdx = header.findIndex(h => h.toLowerCase().includes('check-out odometer'));
-      const tripEndIdx = header.findIndex(h => h.toLowerCase().includes('trip end'));
-      if (vehicleIdx === -1 || (checkinIdx === -1 && checkoutIdx === -1)) {
-        showToast('❌ CSV must have "Vehicle" and a "Check-in/Check-out odometer" column', 'error');
-        return;
-      }
-      // Collect all readings per car, then pick highest non-outlier
-      const allReadings: Record<string, number[]> = {};
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        // Handle CSV with quoted fields
-        const cols: string[] = [];
-        let current = '';
-        let inQuotes = false;
-        for (const ch of line) {
-          if (ch === '"') { inQuotes = !inQuotes; continue; }
-          if (ch === ',' && !inQuotes) { cols.push(current.trim()); current = ''; continue; }
-          current += ch;
-        }
-        cols.push(current.trim());
-        const vehicle = cols[vehicleIdx] || '';
-        const plateMatch = vehicle.match(/#([A-Z0-9]+)\)/);
-        if (!plateMatch) continue;
-        const plate = plateMatch[1];
-        const checkin = checkinIdx !== -1 ? parseFloat(cols[checkinIdx]) : 0;
-        const checkout = checkoutIdx !== -1 ? parseFloat(cols[checkoutIdx]) : 0;
-        if (checkin > 0) (allReadings[plate] ??= []).push(checkin);
-        if (checkout > 0) (allReadings[plate] ??= []).push(checkout);
-      }
-      // For each car, pick the highest reading that isn't an obvious outlier
-      // Outlier = more than 5,000 miles above the second-highest unique reading
-      const plateMap: Record<string, number> = {};
-      for (const [plate, readings] of Object.entries(allReadings)) {
-        if (readings.length === 0) continue;
-        const unique = [...new Set(readings)].sort((a, b) => b - a);
-        let best = unique[0];
-        if (unique.length >= 2 && best - unique[1] > 5000) {
-          best = unique[1]; // skip the outlier
-        }
-        plateMap[plate] = Math.round(best);
-      }
-      if (Object.keys(plateMap).length === 0) {
-        showToast('❌ No valid odometer data found in CSV', 'error');
-        return;
-      }
-      setCsvPreview(plateMap);
-    };
-    reader.readAsText(file);
-  };
-
-  const submitCsvData = async () => {
-    if (!csvPreview) return;
+  const handleCsvFile = async (file: File) => {
+    const text = await file.text();
+    if (!text) return;
     setSubmitting(true);
     try {
       const res = await fetch('/api/service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'bulk-odometer', data: csvPreview }),
+        body: JSON.stringify({ action: 'upload-csv', csv: text }),
       });
-      if (res.ok) {
-        const result = await res.json();
-        showToast(`✅ Updated ${result.count} odometer readings`);
+      const result = await res.json();
+      if (res.ok && result.success) {
+        const outliers = result.details?.filter((d: any) => d.outlierSkipped) || [];
+        const msg = outliers.length > 0
+          ? `✅ Updated ${result.count} cars (${outliers.length} outlier(s) skipped)`
+          : `✅ Updated ${result.count} cars`;
+        showToast(msg);
         setCsvPreview(null);
         fetchData();
       } else {
-        showToast('❌ Failed to upload', 'error');
+        showToast(`❌ ${result.error || 'Upload failed'}`, 'error');
       }
     } catch {
       showToast('❌ Network error', 'error');
@@ -213,46 +157,17 @@ export default function ServicePage() {
         {/* Upload Turo CSV Card */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
           <h2 className="font-bold text-gray-900 mb-3">📤 Upload Turo CSV</h2>
-          {!csvPreview ? (
-            <div className="space-y-3">
-              <p className="text-xs text-gray-500">Upload a Turo trip CSV to bulk-update odometer readings. The most recent check-in odometer per vehicle will be used.</p>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleCsvFile(f); }}
-                className="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-xs text-gray-500 font-medium">Preview — {Object.keys(csvPreview).length} vehicles found:</p>
-              <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-100">
-                {Object.entries(csvPreview).sort(([a],[b]) => a.localeCompare(b)).map(([plate, mi]) => {
-                  const car = data?.cars.find(c => c.plate === plate);
-                  return (
-                    <div key={plate} className="flex justify-between px-3 py-1.5 text-xs border-b border-gray-50 last:border-0">
-                      <span className={car ? 'text-gray-900' : 'text-orange-600'}>
-                        {car ? `${car.car}` : plate} <span className="text-gray-400">({plate})</span>
-                        {!car && <span className="ml-1 text-[10px]">⚠️ not in fleet</span>}
-                      </span>
-                      <span className="font-mono font-medium text-gray-700">{mi.toLocaleString()} mi</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setCsvPreview(null)}
-                  className="flex-1 py-2.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
-                >Cancel</button>
-                <button
-                  onClick={submitCsvData}
-                  disabled={submitting}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors text-sm"
-                >{submitting ? 'Uploading...' : `Upload ${Object.keys(csvPreview).length} Readings`}</button>
-              </div>
-            </div>
-          )}
+          <div className="space-y-3">
+            <p className="text-xs text-gray-500">Upload a Turo trip CSV to update odometer readings. Takes the highest check-in or check-out value per car (outliers auto-skipped).</p>
+            <input
+              type="file"
+              accept=".csv"
+              disabled={submitting}
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleCsvFile(f); e.target.value = ''; }}
+              className="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+            />
+            {submitting && <p className="text-xs text-blue-600 animate-pulse">Processing CSV...</p>}
+          </div>
         </div>
 
         {/* Filters */}

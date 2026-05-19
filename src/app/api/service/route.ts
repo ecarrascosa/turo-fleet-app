@@ -170,5 +170,109 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, count });
   }
 
+  if (action === 'upload-csv') {
+    const { csv: csvText } = body;
+    if (!csvText || typeof csvText !== 'string') {
+      return NextResponse.json({ error: 'csv text required' }, { status: 400 });
+    }
+
+    // Proper CSV parsing (handles quoted fields with commas, newlines, etc.)
+    const parseCSV = (text: string): string[][] => {
+      const rows: string[][] = [];
+      let row: string[] = [];
+      let cell = '';
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (inQuotes) {
+          if (ch === '"' && text[i + 1] === '"') {
+            cell += '"'; i++; // escaped quote
+          } else if (ch === '"') {
+            inQuotes = false;
+          } else {
+            cell += ch;
+          }
+        } else {
+          if (ch === '"') {
+            inQuotes = true;
+          } else if (ch === ',') {
+            row.push(cell.trim()); cell = '';
+          } else if (ch === '\n' || (ch === '\r' && text[i + 1] === '\n')) {
+            if (ch === '\r') i++;
+            row.push(cell.trim()); cell = '';
+            if (row.some(c => c)) rows.push(row);
+            row = [];
+          } else {
+            cell += ch;
+          }
+        }
+      }
+      row.push(cell.trim());
+      if (row.some(c => c)) rows.push(row);
+      return rows;
+    }
+
+    const rows = parseCSV(csvText);
+    if (rows.length < 2) {
+      return NextResponse.json({ error: 'CSV has no data rows' }, { status: 400 });
+    }
+
+    const header = rows[0].map(h => h.toLowerCase());
+    const vehicleIdx = header.findIndex(h => h.includes('vehicle'));
+    const checkinIdx = header.findIndex(h => h.includes('check-in odometer'));
+    const checkoutIdx = header.findIndex(h => h.includes('check-out odometer'));
+
+    if (vehicleIdx === -1 || (checkinIdx === -1 && checkoutIdx === -1)) {
+      return NextResponse.json({ 
+        error: 'CSV must have "Vehicle" and "Check-in odometer" or "Check-out odometer" columns',
+        foundColumns: rows[0],
+      }, { status: 400 });
+    }
+
+    // Collect all readings per plate
+    const allReadings: Record<string, number[]> = {};
+    for (let i = 1; i < rows.length; i++) {
+      const cols = rows[i];
+      const vehicle = cols[vehicleIdx] || '';
+      const plateMatch = vehicle.match(/#([A-Z0-9]+)\)/);
+      if (!plateMatch) continue;
+      const plate = plateMatch[1];
+
+      const checkin = checkinIdx !== -1 ? parseFloat(cols[checkinIdx]) : 0;
+      const checkout = checkoutIdx !== -1 ? parseFloat(cols[checkoutIdx]) : 0;
+      if (checkin > 0) (allReadings[plate] ??= []).push(checkin);
+      if (checkout > 0) (allReadings[plate] ??= []).push(checkout);
+    }
+
+    // For each car: take the highest reading, skip outliers (>5K above second-highest)
+    const results: Record<string, number> = {};
+    const details: { plate: string; mileage: number; outlierSkipped?: number }[] = [];
+    for (const [plate, readings] of Object.entries(allReadings)) {
+      if (readings.length === 0) continue;
+      const unique = Array.from(new Set(readings)).sort((a, b) => b - a);
+      let best = unique[0];
+      let outlierSkipped: number | undefined;
+      if (unique.length >= 2 && best - unique[1] > 5000) {
+        outlierSkipped = best;
+        best = unique[1];
+      }
+      results[plate] = Math.round(best);
+      details.push({ plate, mileage: Math.round(best), ...(outlierSkipped ? { outlierSkipped: Math.round(outlierSkipped) } : {}) });
+    }
+
+    // Write to DB
+    let count = 0;
+    for (const [plate, mileage] of Object.entries(results)) {
+      await sql`
+        INSERT INTO odometer_readings (plate, mileage, updated_at)
+        VALUES (${plate}, ${mileage}, NOW())
+        ON CONFLICT (plate) DO UPDATE SET mileage = ${mileage}, updated_at = NOW()
+      `;
+      count++;
+    }
+
+    return NextResponse.json({ success: true, count, details });
+  }
+
   return NextResponse.json({ error: 'unknown action' }, { status: 400 });
 }
