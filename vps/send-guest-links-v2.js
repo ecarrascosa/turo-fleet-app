@@ -134,9 +134,21 @@ async function sendGuestLink(page, reservation) {
 
   await new Promise(r => setTimeout(r, 1000));
 
-  // Send by pressing Enter (Turo's send button is an icon that's hard to target,
-  // but Enter sends the message reliably)
-  await page.keyboard.press('Enter');
+  // Click the submit button (circular arrow icon)
+  const sendBtn = await page.evaluateHandle(() => {
+    const form = document.querySelector('form');
+    if (form) {
+      const submit = form.querySelector('button[type="submit"]');
+      if (submit) return submit;
+    }
+    return document.querySelector('button[type="submit"]');
+  });
+  if (!sendBtn || !(await sendBtn.asElement())) {
+    // Fallback: press Enter
+    await page.keyboard.press('Enter');
+  } else {
+    await sendBtn.click();
+  }
 
   // Wait for message to send
   await new Promise(r => setTimeout(r, 3000));
