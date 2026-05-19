@@ -82,7 +82,8 @@ export default function ServicePage() {
         showToast('❌ CSV must have "Vehicle" and a "Check-in/Check-out odometer" column', 'error');
         return;
       }
-      const plateMap: Record<string, number> = {};
+      // Collect all readings per car, then pick highest non-outlier
+      const allReadings: Record<string, number[]> = {};
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
@@ -102,12 +103,20 @@ export default function ServicePage() {
         const plate = plateMatch[1];
         const checkin = checkinIdx !== -1 ? parseFloat(cols[checkinIdx]) : 0;
         const checkout = checkoutIdx !== -1 ? parseFloat(cols[checkoutIdx]) : 0;
-        const odo = Math.max(checkin || 0, checkout || 0);
-        if (!odo || odo <= 0) continue;
-        // Keep the highest odometer reading seen for each car
-        if (!plateMap[plate] || odo > plateMap[plate]) {
-          plateMap[plate] = Math.round(odo);
+        if (checkin > 0) (allReadings[plate] ??= []).push(checkin);
+        if (checkout > 0) (allReadings[plate] ??= []).push(checkout);
+      }
+      // For each car, pick the highest reading that isn't an obvious outlier
+      // Outlier = more than 1.5x the second-highest reading (when 3+ readings exist)
+      const plateMap: Record<string, number> = {};
+      for (const [plate, readings] of Object.entries(allReadings)) {
+        if (readings.length === 0) continue;
+        const sorted = [...readings].sort((a, b) => b - a);
+        let best = sorted[0];
+        if (sorted.length >= 3 && sorted[1] > 0 && best > sorted[1] * 1.5) {
+          best = sorted[1]; // skip the outlier, use second highest
         }
+        plateMap[plate] = Math.round(best);
       }
       if (Object.keys(plateMap).length === 0) {
         showToast('❌ No valid odometer data found in CSV', 'error');
