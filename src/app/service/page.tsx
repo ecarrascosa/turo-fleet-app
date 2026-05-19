@@ -76,13 +76,13 @@ export default function ServicePage() {
       if (!header) return;
       const vehicleIdx = header.findIndex(h => h.toLowerCase().includes('vehicle'));
       const checkinIdx = header.findIndex(h => h.toLowerCase().includes('check-in odometer'));
+      const checkoutIdx = header.findIndex(h => h.toLowerCase().includes('check-out odometer'));
       const tripEndIdx = header.findIndex(h => h.toLowerCase().includes('trip end'));
-      if (vehicleIdx === -1 || checkinIdx === -1) {
-        showToast('❌ CSV must have "Vehicle" and "Check-in odometer" columns', 'error');
+      if (vehicleIdx === -1 || (checkinIdx === -1 && checkoutIdx === -1)) {
+        showToast('❌ CSV must have "Vehicle" and a "Check-in/Check-out odometer" column', 'error');
         return;
       }
       const plateMap: Record<string, number> = {};
-      const plateDates: Record<string, string> = {};
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
@@ -100,13 +100,13 @@ export default function ServicePage() {
         const plateMatch = vehicle.match(/#([A-Z0-9]+)\)/);
         if (!plateMatch) continue;
         const plate = plateMatch[1];
-        const odo = parseFloat(cols[checkinIdx]);
-        if (!odo || odo <= 0 || isNaN(odo)) continue;
-        const tripEnd = tripEndIdx !== -1 ? cols[tripEndIdx] || '' : '';
-        // Use the most recent trip's odometer (by trip end date), not the highest value
-        if (!plateMap[plate] || (tripEnd && tripEnd > (plateDates[plate] || ''))) {
+        const checkin = checkinIdx !== -1 ? parseFloat(cols[checkinIdx]) : 0;
+        const checkout = checkoutIdx !== -1 ? parseFloat(cols[checkoutIdx]) : 0;
+        const odo = Math.max(checkin || 0, checkout || 0);
+        if (!odo || odo <= 0) continue;
+        // Keep the highest odometer reading seen for each car
+        if (!plateMap[plate] || odo > plateMap[plate]) {
           plateMap[plate] = Math.round(odo);
-          plateDates[plate] = tripEnd;
         }
       }
       if (Object.keys(plateMap).length === 0) {
