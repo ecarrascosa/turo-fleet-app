@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No booking email found', resId });
   }
 
-  const parsed = parseTuroEmail(matchingEmail.body);
+  const parsed = parseTuroEmail(matchingEmail.body, matchingEmail.htmlBody);
   if (!parsed) return NextResponse.json({ error: 'Parse failed', resId });
 
   let fleetCars: Array<{ carId: string; name: string }> = [];
