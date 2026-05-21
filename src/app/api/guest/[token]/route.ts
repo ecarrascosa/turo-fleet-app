@@ -46,6 +46,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
+    // Block cancelled reservations
+    if (reservation.status === 'cancelled') {
+      return NextResponse.json({ error: 'This trip has been cancelled' }, { status: 410 });
+    }
+
     const { status: tripStatus, timeLeft } = getTripStatus(reservation.tripStart, reservation.tripEnd);
 
     let car = { lat: 0, lon: 0, name: '', plate: '', locked: false };

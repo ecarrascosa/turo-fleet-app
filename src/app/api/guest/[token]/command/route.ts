@@ -29,6 +29,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     if (!reservation) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
+    if (reservation.status === 'cancelled') {
+      return NextResponse.json({ error: 'This trip has been cancelled' }, { status: 410 });
+    }
     if (!reservation.carId) {
       return NextResponse.json({ error: 'No car linked to this trip' }, { status: 400 });
     }
