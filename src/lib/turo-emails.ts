@@ -86,9 +86,11 @@ export function parseTuroEmail(text: string, htmlBody?: string): TuroEmail | nul
   }
 
   // Pattern 2: "trip with your [Vehicle] is booked" or "change request with your [Vehicle]"
+  // Also handles cancellations: "trip with your Toyota Corolla Cross We're sorry"
   if (!vehicleModel) {
     const subjectMatch = text.match(/(?:trip with your|change request with your)\s+(.+?)\s+(?:is\s+booked|is now confirmed)/i)
       || text.match(/trip with your\s+(.+?)\s+is\s+booked/i)
+      || text.match(/trip with your\s+([A-Za-z][\w\s-]+?)(?:\s+is\b|\s+We\b|\s*$)/im)
       || text.match(/change request with your\s+(.+?)(?:\s+is\b|\s*$)/im);
     if (subjectMatch) {
       const vehicleStr = subjectMatch[1].trim();
@@ -100,6 +102,21 @@ export function parseTuroEmail(text: string, htmlBody?: string): TuroEmail | nul
       } else {
         vehicleModel = vehicleStr;
       }
+    }
+  }
+
+  // Pattern 2.5: Inline "Booked trip Model Year Model" or "Cancelled trip Model Year Model"
+  // Gmail often strips newlines so we get: "...Booked trip Toyota Corolla 2025 Toyota Corolla Trip start..."
+  if (!vehicleYear && vehicleModel) {
+    const inlineMatch = text.match(new RegExp(
+      '(?:Booked|Cancelled|Modified)\\s+trip\\s+' +
+      vehicleModel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+      '\\s+((?:19|20)\\d{2})\\s+' +
+      vehicleModel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+      'i'
+    ));
+    if (inlineMatch) {
+      vehicleYear = inlineMatch[1];
     }
   }
 
