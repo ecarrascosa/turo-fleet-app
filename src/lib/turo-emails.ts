@@ -165,19 +165,38 @@ export function parseTuroEmail(text: string, htmlBody?: string): TuroEmail | nul
     if (changeMatch) changes = changeMatch[1].trim();
   }
 
-  // Location — check htmlBody first (has location data), then fall back to text
+  // Location — extract pickup address from email
   let location: string | undefined;
   const locSource = htmlBody || text;
-  // HTML-stripped body may have blank lines between "Location" and address
-  const locMatch = locSource.match(/Location\s*[\n\s]*?(\d+\s+.+?)[\n\s]*(?:San Francisco|SF|Oakland|Berkeley|Daly City|South San Francisco)/i);
-  if (locMatch) {
-    location = locMatch[1].trim();
+
+  // Strategy 1: "Location" label followed by a street address (number + street name)
+  // Handles multi-line gaps between label and address
+  const locPatterns = [
+    // "Location\n  123 Main Street\n  San Francisco, CA"
+    /Location\s*[\n\s]*?(\d+\s+[A-Za-z][\w\s.'-]+(?:Street|St|Avenue|Ave|Boulevard|Blvd|Drive|Dr|Road|Rd|Lane|Ln|Way|Place|Pl|Court|Ct|Circle|Cir|Terrace|Ter|Parkway|Pkwy)\.?)/i,
+    // "Location\n  123 Main St" (any street, just number + words on same/next line)
+    /Location\s*\n\s*(\d+\s+[A-Za-z][\w\s.'-]{2,40})/i,
+    // "Location" followed by address with city on same line: "123 Main St, San Francisco"
+    /Location\s*[\n\s]*?(\d+\s+.+?,\s*[A-Za-z\s]+)/i,
+  ];
+
+  for (const pat of locPatterns) {
+    const m = locSource.match(pat);
+    if (m) {
+      // Clean up: take just the street address line, strip trailing whitespace/commas
+      location = m[1].trim().replace(/[,\s]+$/, '');
+      break;
+    }
   }
-  // Also try plain text format
-  if (!location) {
-    const locMatch2 = text.match(/Location\s*\n\s*(.+?)\n\s*(?:San Francisco|SF|Oakland|Berkeley|Daly City|South San Francisco)/i);
-    if (locMatch2) {
-      location = locMatch2[1].trim();
+
+  // Fallback: try same patterns on plain text if htmlBody was used above
+  if (!location && htmlBody) {
+    for (const pat of locPatterns) {
+      const m = text.match(pat);
+      if (m) {
+        location = m[1].trim().replace(/[,\s]+$/, '');
+        break;
+      }
     }
   }
 

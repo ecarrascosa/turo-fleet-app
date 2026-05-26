@@ -2,6 +2,21 @@ import { sql } from '@vercel/postgres';
 import { randomBytes } from 'crypto';
 import { TuroEmail } from './turo-emails';
 
+const SLACK_WEBHOOK = process.env.SLACK_WEBHOOK;
+
+async function alertSlack(message: string) {
+  if (!SLACK_WEBHOOK) return;
+  try {
+    await fetch(SLACK_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: message }),
+    });
+  } catch (e) {
+    console.error('Slack alert failed:', e);
+  }
+}
+
 export interface GuestMessage {
   text: string;
   timestamp: string;
@@ -149,6 +164,21 @@ export async function matchCarId(
   return undefined; // 0 matches or ambiguous
 }
 
+/** Explain why car matching failed */
+async function getMatchFailureReason(model: string, year: string, location?: string): Promise<string> {
+  if (!model || !year) return 'Missing vehicle model or year';
+  const result = await sql`
+    SELECT whatsgps_car_id, plate, location FROM vehicle_mappings
+    WHERE turo_model = ${model} AND turo_year = ${year}
+  `;
+  if (result.rows.length === 0) return `No mapping exists for ${year} ${model} — needs to be added to vehicle_mappings`;
+  if (result.rows.length > 1) {
+    const plates = result.rows.map(r => `${r.plate} (${r.location || 'no location'})`).join(', ');
+    return `Multiple cars match: ${plates}. ${location ? `Email location "${location}" didn't match any.` : 'No location in email to disambiguate.'}`;
+  }
+  return 'Unknown';
+}
+
 /** Get all mapping options for a model+year (for duplicate resolution) */
 export async function getDuplicateOptions(
   vehicleModel: string,
@@ -235,6 +265,18 @@ export async function upsertFromEmail(
   // Upsert (new booking or update existing)
   const carId = await matchCarId(email.vehicleModel, email.vehicleYear, email.location);
   const token = generateToken();
+
+  // Alert if car couldn't be matched
+  if (!carId && email.type === 'booked') {
+    const reason = await getMatchFailureReason(email.vehicleModel, email.vehicleYear, email.location);
+    await alertSlack(
+      `⚠️ Car Match Failed — Res #${email.reservationId} (${email.guestName})\n` +
+      `Vehicle: ${email.vehicleYear} ${email.vehicleModel}\n` +
+      `Location from email: ${email.location || 'NOT PARSED'}\n` +
+      `Reason: ${reason}\n` +
+      `Guest link will NOT have navigation or lock/unlock until manually assigned.`
+    );
+  }
 
   const currentTime = new Date();
   const tripStart = new Date(email.tripStart);
