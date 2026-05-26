@@ -266,16 +266,23 @@ export async function upsertFromEmail(
   const carId = await matchCarId(email.vehicleModel, email.vehicleYear, email.location);
   const token = generateToken();
 
-  // Alert if car couldn't be matched
+  // Alert if car couldn't be matched (only if mappings exist — no device = no alert)
   if (!carId && email.type === 'booked') {
-    const reason = await getMatchFailureReason(email.vehicleModel, email.vehicleYear, email.location);
-    await alertSlack(
-      `⚠️ Car Match Failed — Res #${email.reservationId} (${email.guestName})\n` +
-      `Vehicle: ${email.vehicleYear} ${email.vehicleModel}\n` +
-      `Location from email: ${email.location || 'NOT PARSED'}\n` +
-      `Reason: ${reason}\n` +
-      `Guest link will NOT have navigation or lock/unlock until manually assigned.`
-    );
+    const mappingCount = await sql`
+      SELECT COUNT(*) as cnt FROM vehicle_mappings
+      WHERE turo_model = ${email.vehicleModel} AND turo_year = ${email.vehicleYear}
+    `;
+    const hasMappings = parseInt(mappingCount.rows[0]?.cnt || '0') > 0;
+    if (hasMappings) {
+      const reason = await getMatchFailureReason(email.vehicleModel, email.vehicleYear, email.location);
+      await alertSlack(
+        `⚠️ Car Match Failed — Res #${email.reservationId} (${email.guestName})\n` +
+        `Vehicle: ${email.vehicleYear} ${email.vehicleModel}\n` +
+        `Location from email: ${email.location || 'NOT PARSED'}\n` +
+        `Reason: ${reason}\n` +
+        `Guest link will NOT have navigation or lock/unlock until manually assigned.`
+      );
+    }
   }
 
   const currentTime = new Date();
