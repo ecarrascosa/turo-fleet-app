@@ -35,3 +35,4 @@ Screenshot*
 *.png
 .env.prod-check
 .env.vercel-check
+.env.pulled

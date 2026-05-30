@@ -178,6 +178,16 @@ export default function GuestTripPage() {
           Lock &amp; unlock controls will be available when your trip starts
         </div>
 
+        {/* Navigate — available before trip starts too */}
+        {hasLocation && (
+          <div className="mx-4 mt-4">
+            <a href={mapsUrl!} target="_blank" rel="noopener noreferrer"
+              className="block w-full text-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3.5 rounded-xl transition-colors text-base">
+              📍 Navigate to Car
+            </a>
+          </div>
+        )}
+
       </div>
     );
   }

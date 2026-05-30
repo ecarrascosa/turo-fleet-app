@@ -166,33 +166,25 @@ export function parseTuroEmail(text: string, htmlBody?: string): TuroEmail | nul
   }
 
   // Location — extract pickup address from email
+  // Try both htmlBody (stripped) and plain text
   let location: string | undefined;
-  const locSource = htmlBody || text;
+  const sources = [htmlBody, text].filter(Boolean) as string[];
 
-  // Strategy 1: "Location" label followed by a street address (number + street name)
-  // Handles multi-line gaps between label and address
   const locPatterns = [
-    // "Location\n  123 Main Street\n  San Francisco, CA"
-    /Location\s*[\n\s]*?(\d+\s+[A-Za-z][\w\s.'-]+(?:Street|St|Avenue|Ave|Boulevard|Blvd|Drive|Dr|Road|Rd|Lane|Ln|Way|Place|Pl|Court|Ct|Circle|Cir|Terrace|Ter|Parkway|Pkwy)\.?)/i,
-    // "Location\n  123 Main St" (any street, just number + words on same/next line)
-    /Location\s*\n\s*(\d+\s+[A-Za-z][\w\s.'-]{2,40})/i,
-    // "Location" followed by address with city on same line: "123 Main St, San Francisco"
-    /Location\s*[\n\s]*?(\d+\s+.+?,\s*[A-Za-z\s]+)/i,
+    // "Location" followed by street address with suffix (Street, Ave, Blvd, etc.)
+    /Location\s*:?\s*[\n\s]*?(\d+\s+[A-Za-z][\w\s.'-]+(?:Street|St|Avenue|Ave|Boulevard|Blvd|Drive|Dr|Road|Rd|Lane|Ln|Way|Place|Pl|Court|Ct|Circle|Cir|Terrace|Ter|Parkway|Pkwy)\.?)/i,
+    // "Location" then newline/whitespace then number+words (broad catch)
+    /Location\s*:?\s*[\n\s]+(\d+\s+[A-Za-z][\w\s.'-]{2,40})/i,
+    // "Location" then address with comma+city: "123 Main St, San Francisco"
+    /Location\s*:?\s*[\n\s]*?(\d+\s+.+?,\s*[A-Za-z\s]+)/i,
+    // Very broad: "Location" within 50 chars of a street number — last resort
+    /Location[\s\S]{0,50}?(\d+\s+[A-Za-z][\w\s.'-]{2,40}?)(?:\s*[\n,]|\s+(?:San|SF|Oakland|Berkeley|Daly|South|CA|California))/i,
   ];
 
-  for (const pat of locPatterns) {
-    const m = locSource.match(pat);
-    if (m) {
-      // Clean up: take just the street address line, strip trailing whitespace/commas
-      location = m[1].trim().replace(/[,\s]+$/, '');
-      break;
-    }
-  }
-
-  // Fallback: try same patterns on plain text if htmlBody was used above
-  if (!location && htmlBody) {
+  for (const src of sources) {
+    if (location) break;
     for (const pat of locPatterns) {
-      const m = text.match(pat);
+      const m = src.match(pat);
       if (m) {
         location = m[1].trim().replace(/[,\s]+$/, '');
         break;
