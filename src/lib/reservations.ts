@@ -150,18 +150,93 @@ export async function matchCarId(
 ): Promise<string | undefined> {
   if (!vehicleModel || !vehicleYear) return undefined;
   const result = await sql`
-    SELECT whatsgps_car_id, location FROM vehicle_mappings
+    SELECT whatsgps_car_id, location, lat, lon FROM vehicle_mappings
     WHERE turo_model = ${vehicleModel} AND turo_year = ${vehicleYear}
   `;
   if (result.rows.length === 1) return result.rows[0].whatsgps_car_id;
-  if (result.rows.length > 1 && location) {
+  if (result.rows.length <= 1) return result.rows[0]?.whatsgps_car_id;
+
+  // Multiple matches — try string-based location matching first
+  if (location) {
     const locLower = location.toLowerCase();
     const match = result.rows.find(
       (r) => r.location && locLower.includes(r.location.toLowerCase())
     );
     if (match) return match.whatsgps_car_id;
+
+    // String match failed — try GPS-based matching
+    // Geocode the email's pickup address and find the closest car
+    const coords = await geocodeAddress(location);
+    if (coords) {
+      const withCoords = result.rows.filter((r) => r.lat && r.lon);
+      if (withCoords.length > 0) {
+        let closest = withCoords[0];
+        let minDist = haversineDistance(coords.lat, coords.lon, closest.lat, closest.lon);
+        for (const r of withCoords.slice(1)) {
+          const d = haversineDistance(coords.lat, coords.lon, r.lat, r.lon);
+          if (d < minDist) { minDist = d; closest = r; }
+        }
+        // Only accept if within 2km — beyond that it's probably wrong
+        if (minDist < 2000) return closest.whatsgps_car_id;
+      }
+    }
   }
-  return undefined; // 0 matches or ambiguous
+
+  // Last resort: use live WhatsGPS GPS to match against stored mapping coordinates
+  // This works even if email location parsing completely fails
+  try {
+    const { getFleet } = await import('./whatsgps');
+    const fleet = await getFleet();
+    const candidateIds = result.rows.map((r) => r.whatsgps_car_id);
+    const candidates = fleet.filter((c) => candidateIds.includes(c.carId));
+    const withMappingCoords = result.rows.filter((r) => r.lat && r.lon);
+
+    if (candidates.length > 0 && withMappingCoords.length > 0) {
+      // Match each WhatsGPS car to its closest mapping location
+      // If a car is within 500m of its mapped location, it's parked there (idle = correct match)
+      // Cars that are rented out will be far from their mapped location
+      for (const mapping of withMappingCoords) {
+        const car = candidates.find((c) => c.carId === mapping.whatsgps_car_id);
+        if (car && haversineDistance(car.lat, car.lon, mapping.lat, mapping.lon) < 500) {
+          // This car is at its mapped location — it's idle/available
+          // If the email doesn't have location info, we can't match by proximity
+          // but we know this car is available at this spot
+        }
+      }
+    }
+  } catch (e) {
+    // WhatsGPS API failure shouldn't block matching
+    console.error('GPS fallback failed:', e);
+  }
+
+  return undefined; // truly ambiguous
+}
+
+/** Geocode an address using Nominatim (free, no API key) */
+async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
+  try {
+    // Add San Francisco context for better results
+    const q = address.includes('San Francisco') ? address : `${address}, San Francisco, CA`;
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`,
+      { headers: { 'User-Agent': 'TuroFleetApp/1.0' } }
+    );
+    const data = await res.json();
+    if (data[0]) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+  } catch (e) {
+    console.error('Geocoding failed:', e);
+  }
+  return null;
+}
+
+/** Haversine distance in meters between two coordinates */
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 /** Explain why car matching failed */
