@@ -36,7 +36,7 @@ export function parseTuroEmail(text: string, htmlBody?: string): TuroEmail | nul
   let type: TuroEmail['type'];
   if (/trip is booked/i.test(text)) {
     type = 'booked';
-  } else if (/has cancelled their trip/i.test(text) || /Turo (?:has )?cancelled/i.test(text) || /You['']ve cancelled/i.test(text)) {
+  } else if (/has cancell?ed their trip/i.test(text) || /Turo (?:has )?cancell?ed/i.test(text) || /You['']ve cancell?ed/i.test(text) || /trip (?:has been |was )?cancell?ed/i.test(text)) {
     type = 'cancelled';
   } else if (/has changed their trip/i.test(text) || /confirmed .+['\u2018\u2019]s change request/i.test(text) || /has requested a change to their trip/i.test(text)) {
     type = 'modified';

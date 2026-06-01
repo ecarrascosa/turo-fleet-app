@@ -26,9 +26,25 @@ export async function GET(req: NextRequest) {
       console.warn('Could not fetch fleet:', e);
     }
 
-    // Look back 2 hours, max 20 emails per cron run (runs every minute)
+    // Look back 2 hours for new bookings/changes
     const afterDate = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const emails = await fetchTuroEmails(20, afterDate);
+
+    // Also look back 7 days for cancellations (they can come anytime)
+    const cancelAfter = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const cancelEmails = await fetchTuroEmails(20, cancelAfter, ['cancelled']);
+    
+    // Merge, dedup by id
+    const seenIds = new Set(emails.map(e => e.id));
+    for (const ce of cancelEmails) {
+      if (!seenIds.has(ce.id)) {
+        emails.push(ce);
+        seenIds.add(ce.id);
+      }
+    }
+
+    // Sort by date so cancellations (which come after bookings) are processed last
+    emails.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     let processed = 0;
     let skipped = 0;

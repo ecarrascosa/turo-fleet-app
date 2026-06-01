@@ -105,19 +105,27 @@ export interface GmailMessage {
 /**
  * Fetch Turo notification emails from Gmail.
  */
-export async function fetchTuroEmails(maxResults = 20, afterDate?: string): Promise<GmailMessage[]> {
+export async function fetchTuroEmails(maxResults = 20, afterDate?: string, types?: ('booked' | 'cancelled' | 'modified')[]): Promise<GmailMessage[]> {
   const dateFilter = afterDate ? (() => {
     const d = new Date(afterDate);
     return ` after:${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
   })() : '';
 
-  const queries = [
-    `from:noreply@mail.turo.com subject:"is booked"${dateFilter}`,
-    `from:noreply@mail.turo.com subject:"has cancelled"${dateFilter}`,
-    `from:noreply@mail.turo.com subject:"has changed"${dateFilter}`,
-    `from:noreply@mail.turo.com subject:"change request"${dateFilter}`,
-    `from:noreply@mail.turo.com subject:"You've cancelled"${dateFilter}`,
-  ];
+  const allQueries: Record<string, string[]> = {
+    booked: [`from:noreply@mail.turo.com subject:"is booked"${dateFilter}`],
+    cancelled: [
+      `from:noreply@mail.turo.com subject:"has cancelled"${dateFilter}`,
+      `from:noreply@mail.turo.com subject:"You've cancelled"${dateFilter}`,
+      `from:noreply@mail.turo.com subject:"Turo cancelled"${dateFilter}`,
+    ],
+    modified: [
+      `from:noreply@mail.turo.com subject:"has changed"${dateFilter}`,
+      `from:noreply@mail.turo.com subject:"change request"${dateFilter}`,
+    ],
+  };
+
+  const selectedTypes = types || ['booked', 'cancelled', 'modified'];
+  const queries = selectedTypes.flatMap(t => allQueries[t] || []);
 
   const allMessages: Array<{ id: string }> = [];
   const seenIds = new Set<string>();
