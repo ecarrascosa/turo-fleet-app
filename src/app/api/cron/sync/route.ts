@@ -47,11 +47,34 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Re-match any booked/active reservations still missing car_id
+    // This catches duplicates that need GPS fallback or re-parsed location
+    let rematched = 0;
+    try {
+      const { sql } = await import('@vercel/postgres');
+      const { matchCarId } = await import('@/lib/reservations');
+      const unmatched = await sql`
+        SELECT id, vehicle_model, vehicle_year, location, reservation_id
+        FROM reservations
+        WHERE car_id IS NULL AND status IN ('booked', 'active')
+      `;
+      for (const row of unmatched.rows) {
+        const carId = await matchCarId(row.vehicle_model || '', row.vehicle_year || '', row.location || undefined);
+        if (carId) {
+          await sql`UPDATE reservations SET car_id = ${carId}, updated_at = NOW() WHERE id = ${row.id}`;
+          rematched++;
+        }
+      }
+    } catch (e: any) {
+      console.error('Rematch step failed:', e.message);
+    }
+
     return NextResponse.json({
       success: true,
       emailsFetched: emails.length,
       processed,
       skipped,
+      rematched,
       timestamp: new Date().toISOString(),
     });
   } catch (e: any) {
