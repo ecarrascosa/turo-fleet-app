@@ -16,7 +16,7 @@ export async function GET() {
     let updated = 0;
 
     for (const row of unmatched.rows) {
-      const carId = await matchCarId(row.vehicle_model || '', row.vehicle_year || '');
+      const carId = await matchCarId(row.vehicle_model || '', row.vehicle_year || '', row.location || undefined);
       if (carId) {
         await sql`UPDATE reservations SET car_id = ${carId}, updated_at = NOW() WHERE id = ${row.id}`;
         updated++;

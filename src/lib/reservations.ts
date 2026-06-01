@@ -182,8 +182,8 @@ export async function matchCarId(
     }
   }
 
-  // Last resort: use live WhatsGPS GPS to match against stored mapping coordinates
-  // This works even if email location parsing completely fails
+  // Last resort: use live WhatsGPS GPS to find which duplicate is parked at its home location
+  // A car near its mapped location is idle/available = the one being booked
   try {
     const { getFleet } = await import('./whatsgps');
     const fleet = await getFleet();
@@ -192,20 +192,35 @@ export async function matchCarId(
     const withMappingCoords = result.rows.filter((r) => r.lat && r.lon);
 
     if (candidates.length > 0 && withMappingCoords.length > 0) {
-      // Match each WhatsGPS car to its closest mapping location
-      // If a car is within 500m of its mapped location, it's parked there (idle = correct match)
-      // Cars that are rented out will be far from their mapped location
+      // Find which cars are currently parked at their home location (within 500m)
+      const idleCars: typeof result.rows = [];
       for (const mapping of withMappingCoords) {
         const car = candidates.find((c) => c.carId === mapping.whatsgps_car_id);
         if (car && haversineDistance(car.lat, car.lon, mapping.lat, mapping.lon) < 500) {
-          // This car is at its mapped location — it's idle/available
-          // If the email doesn't have location info, we can't match by proximity
-          // but we know this car is available at this spot
+          idleCars.push(mapping);
+        }
+      }
+      // If exactly one duplicate is at its home location, that's the one being booked
+      if (idleCars.length === 1) {
+        console.log(`GPS fallback matched: car ${idleCars[0].whatsgps_car_id} is at home location`);
+        return idleCars[0].whatsgps_car_id;
+      }
+
+      // If we have the email location, match it to the closest idle car
+      if (location && idleCars.length > 1) {
+        const coords = await geocodeAddress(location);
+        if (coords) {
+          let closest = idleCars[0];
+          let minDist = haversineDistance(coords.lat, coords.lon, closest.lat, closest.lon);
+          for (const r of idleCars.slice(1)) {
+            const d = haversineDistance(coords.lat, coords.lon, r.lat, r.lon);
+            if (d < minDist) { minDist = d; closest = r; }
+          }
+          if (minDist < 2000) return closest.whatsgps_car_id;
         }
       }
     }
   } catch (e) {
-    // WhatsGPS API failure shouldn't block matching
     console.error('GPS fallback failed:', e);
   }
 
