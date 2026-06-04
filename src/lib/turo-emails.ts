@@ -348,6 +348,25 @@ function parseNewTripDate(text: string, which: 'start' | 'end'): string | undefi
     return toPacificISO(year, month, day, hours, minutes);
   }
 
+  // Format 3: "New trip start on Thu, Jun 4 12:00 PM" (comma after day name, month before day, no year)
+  const pattern3 = new RegExp(
+    `New trip ${which} on \\w+,\\s*(\\w+)\\s+(\\d{1,2})\\s+(\\d{1,2}):(\\d{2})\\s*(AM|PM|[ap]\\.?m\\.?)`,
+    'i'
+  );
+  const m3 = text.match(pattern3);
+  if (m3) {
+    const month = MONTH_MAP[m3[1].toLowerCase()];
+    if (!month) return undefined;
+    const day = parseInt(m3[2]);
+    const year = new Date().getFullYear();
+    let hours = parseInt(m3[3]);
+    const minutes = parseInt(m3[4]);
+    const ampm = m3[5].replace(/\./g, '').toUpperCase();
+    if (ampm === 'PM' && hours !== 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+    return toPacificISO(year, month, day, hours, minutes);
+  }
+
   return undefined;
 }
 
