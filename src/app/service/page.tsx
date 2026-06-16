@@ -243,12 +243,16 @@ export default function ServicePage() {
                   </div>
                 )}
 
-                {(car.status === 'overdue' || car.status === 'due-soon') && servicingPlate !== car.plate && (
+                {servicingPlate !== car.plate && (
                   <button
                     onClick={() => startServicing(car.plate, car.currentOdo)}
-                    className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-xs font-semibold py-2 rounded-lg transition-colors"
+                    className={`w-full text-white text-xs font-semibold py-2 rounded-lg transition-colors ${
+                      car.status === 'no-data'
+                        ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+                        : 'bg-green-600 hover:bg-green-700 active:bg-green-800'
+                    }`}
                   >
-                    ✅ Mark as Serviced
+                    {car.status === 'no-data' ? '📝 Enter Service Mileage' : '✅ Mark as Serviced'}
                   </button>
                 )}
 
