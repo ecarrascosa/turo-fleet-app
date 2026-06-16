@@ -36,3 +36,5 @@ Screenshot*
 .env.prod-check
 .env.vercel-check
 .env.pulled
+.env.local.tmp
+.env.whatsgps

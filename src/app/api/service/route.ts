@@ -3,24 +3,7 @@ import { sql } from '@vercel/postgres';
 import fleetData from '@/data/fleet.json';
 import odometerData from '@/data/odometer.json';
 
-const DEFAULT_SERVICE_INTERVAL = 7000;
-
-// Plates with 10,000-mile service intervals (Toyotas)
-const INTERVAL_10K: Set<string> = new Set([
-  '9RNT319', // 2025 Corolla Hybrid
-  '9RPA138', // 2025 Corolla LE (white)
-  '9UOC437', // 2025 Corolla (blue)
-  '9BPX540', // 2022 Corolla
-  '8UXU000', // 2019 Corolla
-  '8NNH938', // 2015 Corolla
-  '9XBP640', // 2026 Corolla Cross
-  '7BXV391', // 2013 Camry
-  '9WUA725', // 2025 RAV4
-]);
-
-function getServiceInterval(plate: string): number {
-  return INTERVAL_10K.has(plate) ? 10000 : DEFAULT_SERVICE_INTERVAL;
-}
+const DEFAULT_SERVICE_INTERVAL = 7500;
 
 interface FleetCar {
   car: string;
@@ -74,7 +57,7 @@ async function getServiceStatus(cars: FleetCar[]) {
   const results = await Promise.all(cars.map(async car => {
     const lastService = await getLastService(car.plate, car.lastService);
     const currentOdo = await getCurrentOdo(car.plate);
-    const interval = getServiceInterval(car.plate);
+    const interval = DEFAULT_SERVICE_INTERVAL;
     const nextService = lastService != null ? lastService + interval : null;
     const remaining = (nextService != null && currentOdo != null) ? nextService - currentOdo : null;
 
