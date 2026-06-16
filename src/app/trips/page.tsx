@@ -111,6 +111,9 @@ export default function TripsPage() {
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [sentId, setSentId] = useState<string | null>(null);
+
+  const GUEST_MESSAGE = `Here is the link for you to find the car, unlock it and lock it. To find the car, simply click "Navigate to Car" and it will open Google Maps directing you to the car. When you are at the car, you can use the app to unlock it. The controls will display 30 minutes prior to your scheduled trip start time. Make sure you have uploaded your driver's license prior to starting the trip. The key will be in the center console inside a black RFID pouch. Please put it back in the pouch after trip end and lock the car with the app.`;
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -154,6 +157,21 @@ export default function TripsPage() {
       showToast('📋 Guest link copied!');
     }).catch(() => {
       prompt('Copy this link:', url);
+    });
+  };
+
+  const sendGuestLink = (renterToken: string, reservationId: string) => {
+    const url = `https://turo-fleet-app-theta.vercel.app/trip/${renterToken}`;
+    const fullMessage = `${GUEST_MESSAGE}\n${url}`;
+    navigator.clipboard.writeText(fullMessage).then(() => {
+      setSentId(reservationId);
+      setTimeout(() => setSentId(null), 3000);
+      showToast('📋 Message copied! Opening Turo inbox...');
+      setTimeout(() => {
+        window.open(`https://turo.com/us/en/inbox/messages/thread/${reservationId}`, '_blank');
+      }, 500);
+    }).catch(() => {
+      prompt('Copy this message and paste in Turo inbox:', fullMessage);
     });
   };
 
@@ -390,6 +408,10 @@ export default function TripsPage() {
                                     onClick={() => copyGuestLink(res.renterToken!, res.reservationId)}
                                     className={`shrink-0 px-3 py-1 rounded-md text-xs font-medium transition-all ${copiedId === res.reservationId ? 'bg-green-100 text-green-700' : 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100'}`}
                                   >{copiedId === res.reservationId ? '✓ Copied' : 'Copy'}</button>
+                                  <button
+                                    onClick={() => sendGuestLink(res.renterToken!, res.reservationId)}
+                                    className={`shrink-0 px-3 py-1 rounded-md text-xs font-medium transition-all ${sentId === res.reservationId ? 'bg-green-100 text-green-700' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}
+                                  >{sentId === res.reservationId ? '✓ Opening...' : '📩 Send'}</button>
                                 </div>
                               </div>
                             )}
