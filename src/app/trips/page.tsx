@@ -408,11 +408,11 @@ export default function TripsPage() {
                                     onClick={() => copyGuestLink(res.renterToken!, res.reservationId)}
                                     className={`shrink-0 px-3 py-1 rounded-md text-xs font-medium transition-all ${copiedId === res.reservationId ? 'bg-green-100 text-green-700' : 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100'}`}
                                   >{copiedId === res.reservationId ? '✓ Copied' : 'Copy'}</button>
+                                  <button
+                                    onClick={() => sendGuestLink(res.renterToken!, res.reservationId)}
+                                    className={`shrink-0 px-3 py-1 rounded-md text-xs font-medium transition-all ${sentId === res.reservationId ? 'bg-green-100 text-green-700' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}
+                                  >{sentId === res.reservationId ? '✓ Sent' : '📨 Send'}</button>
                                 </div>
-                                <button
-                                  onClick={() => sendGuestLink(res.renterToken!, res.reservationId)}
-                                  className={`mt-2 w-full px-3 py-2.5 rounded-lg text-xs font-semibold transition-all ${sentId === res.reservationId ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'}`}
-                                >{sentId === res.reservationId ? '✓ Message copied — paste in Turo' : '📨 Send Guest Link'}</button>
                               </div>
                             )}
                           </div>
