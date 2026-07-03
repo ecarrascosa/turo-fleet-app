@@ -13,6 +13,8 @@ export async function GET() {
       getBouncieVehicles(),
     ]);
 
+    // Cars removed from fleet
+    const EXCLUDED_PLATES = new Set(['6WEK555', '8GOF095', 'EJ75H15']);
     const cars: any[] = [];
 
     // WhatsGPS cars
@@ -60,7 +62,8 @@ export async function GET() {
       console.warn('[Fleet] Bouncie failed:', bouncieVehicles.reason?.message);
     }
 
-    return NextResponse.json({ cars });
+    const filtered = cars.filter(c => !EXCLUDED_PLATES.has(c.plate));
+    return NextResponse.json({ cars: filtered });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

@@ -5,11 +5,6 @@
     "lastService": 143625
   },
   {
-    "car": "2012 Chevy Cruze",
-    "plate": "8GOF095",
-    "lastService": 129812
-  },
-  {
     "car": "2016 VW Jetta",
     "plate": "7RBK253",
     "lastService": 151324
@@ -110,11 +105,6 @@
     "lastService": 30257
   },
   {
-    "car": "2013 Hyundai Elantra",
-    "plate": "6WEK555",
-    "lastService": null
-  },
-  {
     "car": "2013 Toyota Yaris",
     "plate": "8VLS461",
     "lastService": 69946
@@ -123,11 +113,6 @@
     "car": "2013 Toyota Camry",
     "plate": "7BXV391",
     "lastService": 71342
-  },
-  {
-    "car": "2023 Tesla Model Y",
-    "plate": "EJ75H15",
-    "lastService": null
   },
   {
     "car": "2025 Toyota Rav4",
