@@ -21,7 +21,7 @@ type ViewState = 'upcoming' | 'ongoing' | 'history';
 
 function computeView(tripStart: string, tripEnd: string): ViewState {
   const now = Date.now();
-  const earlyAccess = new Date(tripStart).getTime() - 30 * 60 * 1000; // 30 min before start
+  const earlyAccess = new Date(tripStart).getTime() - 12 * 60 * 60 * 1000; // 12 hours before start
   const graceEnd = new Date(tripEnd).getTime() + 30 * 60 * 1000; // 30 min after end
   if (now < earlyAccess) return 'upcoming';
   if (now <= graceEnd) return 'ongoing';
