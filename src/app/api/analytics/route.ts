@@ -1,125 +1,153 @@
+import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 
 export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-
-interface Trip {
-  resId: string;
-  guest: string;
-  vehicle: string;
-  vehicleName: string;
-  plate: string;
-  vin: string;
-  tripStart: string;
-  tripEnd: string;
-  status: string;
-  tripDays: number;
-  tripPrice: number;
-  totalEarnings: number;
-}
-
-function parseCsv(): Trip[] {
-  const csvPath = join(process.cwd(), '..', 'data', 'trip_earnings_export_20260310.csv');
-  const raw = readFileSync(csvPath, 'utf-8');
-  const lines = raw.split('\n').filter(l => l.trim());
-  if (lines.length < 2) return [];
-
-  return lines.slice(1).map(line => {
-    const cols: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') { inQuotes = !inQuotes; continue; }
-      if (ch === ',' && !inQuotes) { cols.push(current.trim()); current = ''; continue; }
-      current += ch;
-    }
-    cols.push(current.trim());
-
-    const clean = (i: number) => (cols[i] || '').trim();
-    const money = (i: number) => parseFloat(clean(i).replace(/[A-Z]*\$|,/g, '') || '0');
-    const vehicleField = clean(2);
-    const plateMatch = vehicleField.match(/#(\w+)/);
-
-    return {
-      resId: clean(0),
-      guest: clean(1),
-      vehicle: vehicleField,
-      vehicleName: clean(3),
-      plate: plateMatch ? plateMatch[1] : '',
-      vin: clean(5),
-      tripStart: clean(6),
-      tripEnd: clean(7),
-      status: clean(10),
-      tripDays: parseInt(clean(14)) || 0,
-      tripPrice: money(15),
-      totalEarnings: money(46),
-    };
-  }).filter(r => r.resId);
-}
 
 export async function GET() {
   try {
-    const trips = parseCsv();
-    const completed = trips.filter(t => t.status === 'Completed' || t.status === 'In-progress');
-    const cancelled = trips.filter(t => t.status.includes('cancellation'));
+    // Summary stats
+    const summaryResult = await sql`
+      SELECT
+        COALESCE(SUM(CASE WHEN status != 'cancelled' THEN earnings ELSE 0 END), 0) as total_revenue,
+        COUNT(CASE WHEN status != 'cancelled' THEN 1 END) as total_trips,
+        ROUND(AVG(CASE WHEN status != 'cancelled' THEN earnings END)::numeric, 2) as avg_earnings_per_trip,
+        ROUND(AVG(CASE WHEN status != 'cancelled' THEN EXTRACT(EPOCH FROM (trip_end - trip_start)) / 86400 END)::numeric, 1) as avg_trip_days,
+        COUNT(DISTINCT CASE WHEN status != 'cancelled' THEN guest_name END) as unique_guests,
+        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_trips,
+        COUNT(CASE WHEN status = 'active' THEN 1 END) as active_trips,
+        COUNT(CASE WHEN status = 'booked' THEN 1 END) as booked_trips,
+        MIN(CASE WHEN status != 'cancelled' THEN trip_start END) as earliest_trip,
+        MAX(CASE WHEN status != 'cancelled' THEN trip_end END) as latest_trip
+      FROM reservations
+    `;
+    const s = summaryResult.rows[0];
 
-    // Total revenue
-    const totalRevenue = completed.reduce((s, t) => s + t.totalEarnings, 0);
-    const totalTrips = completed.length;
-    const totalDays = completed.reduce((s, t) => s + t.tripDays, 0);
-    const avgEarningsPerTrip = totalTrips ? totalRevenue / totalTrips : 0;
-    const avgTripDays = totalTrips ? totalDays / totalTrips : 0;
-    const uniqueGuests = new Set(completed.map(t => t.guest)).size;
+    // Vehicle stats
+    const vehicleResult = await sql`
+      SELECT
+        vehicle_year || ' ' || vehicle_model as vehicle,
+        COUNT(*) as trips,
+        ROUND(SUM(earnings)::numeric, 2) as total_revenue,
+        ROUND(SUM(EXTRACT(EPOCH FROM (trip_end - trip_start)) / 86400)::numeric, 1) as total_days,
+        ROUND(AVG(earnings)::numeric, 2) as avg_per_trip,
+        CASE
+          WHEN SUM(EXTRACT(EPOCH FROM (trip_end - trip_start)) / 86400) > 0
+          THEN ROUND((SUM(earnings) / SUM(EXTRACT(EPOCH FROM (trip_end - trip_start)) / 86400))::numeric, 2)
+          ELSE 0
+        END as avg_per_day
+      FROM reservations
+      WHERE status != 'cancelled'
+      GROUP BY vehicle_year, vehicle_model
+      ORDER BY total_revenue DESC
+    `;
 
-    // Revenue by vehicle
-    const byVehicle: Record<string, { name: string; plate: string; trips: number; revenue: number; days: number }> = {};
-    for (const t of completed) {
-      const key = t.plate || t.vehicleName;
-      if (!byVehicle[key]) byVehicle[key] = { name: t.vehicleName, plate: t.plate, trips: 0, revenue: 0, days: 0 };
-      byVehicle[key].trips++;
-      byVehicle[key].revenue += t.totalEarnings;
-      byVehicle[key].days += t.tripDays;
+    const totalDaysInRange = s.earliest_trip && s.latest_trip
+      ? Math.max(1, (new Date(s.latest_trip).getTime() - new Date(s.earliest_trip).getTime()) / 86400000)
+      : 1;
+
+    const vehicleStats = vehicleResult.rows.map(v => ({
+      vehicle: v.vehicle,
+      trips: Number(v.trips),
+      totalRevenue: Number(v.total_revenue),
+      totalDays: Number(v.total_days),
+      avgPerTrip: Number(v.avg_per_trip),
+      avgPerDay: Number(v.avg_per_day),
+      utilizationRate: Math.round((Number(v.total_days) / totalDaysInRange) * 1000) / 10,
+    }));
+
+    // Monthly stats
+    const monthlyResult = await sql`
+      SELECT
+        TO_CHAR(trip_start, 'YYYY-MM') as month,
+        ROUND(SUM(earnings)::numeric, 2) as revenue,
+        COUNT(*) as trips,
+        ROUND(AVG(earnings)::numeric, 2) as avg_per_trip
+      FROM reservations
+      WHERE status != 'cancelled'
+      GROUP BY TO_CHAR(trip_start, 'YYYY-MM')
+      ORDER BY month
+    `;
+
+    // Fill in missing months
+    const monthlyMap = new Map(monthlyResult.rows.map(r => [r.month, r]));
+    const monthlyStats: { month: string; revenue: number; trips: number; avgPerTrip: number }[] = [];
+    if (s.earliest_trip) {
+      const start = new Date(s.earliest_trip);
+      const now = new Date();
+      const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+      while (cur <= now) {
+        const key = cur.toISOString().slice(0, 7);
+        const row = monthlyMap.get(key);
+        monthlyStats.push({
+          month: key,
+          revenue: row ? Number(row.revenue) : 0,
+          trips: row ? Number(row.trips) : 0,
+          avgPerTrip: row ? Number(row.avg_per_trip) : 0,
+        });
+        cur.setMonth(cur.getMonth() + 1);
+      }
     }
-    const vehicleStats = Object.values(byVehicle)
-      .map(v => ({
-        ...v,
-        avgPerTrip: v.trips ? v.revenue / v.trips : 0,
-        avgPerDay: v.days ? v.revenue / v.days : 0,
-      }))
-      .sort((a, b) => b.revenue - a.revenue);
 
-    // Revenue by month
-    const byMonth: Record<string, { revenue: number; trips: number; days: number }> = {};
-    for (const t of completed) {
-      const d = new Date(t.tripStart);
-      if (isNaN(d.getTime())) continue;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (!byMonth[key]) byMonth[key] = { revenue: 0, trips: 0, days: 0 };
-      byMonth[key].revenue += t.totalEarnings;
-      byMonth[key].trips++;
-      byMonth[key].days += t.tripDays;
-    }
-    const monthlyStats = Object.entries(byMonth)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, data]) => ({ month, ...data }));
+    // Weekday stats
+    const weekdayResult = await sql`
+      SELECT
+        EXTRACT(DOW FROM trip_start)::int as dow,
+        ROUND(AVG(earnings)::numeric, 2) as avg_revenue,
+        COUNT(*) as trips
+      FROM reservations
+      WHERE status != 'cancelled'
+      GROUP BY EXTRACT(DOW FROM trip_start)
+      ORDER BY dow
+    `;
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const weekdayStats = weekdayResult.rows.map(r => ({
+      day: dayNames[r.dow],
+      avgRevenue: Number(r.avg_revenue),
+      trips: Number(r.trips),
+    }));
+
+    // Top guests
+    const guestsResult = await sql`
+      SELECT
+        guest_name,
+        COUNT(*) as trips,
+        ROUND(SUM(earnings)::numeric, 2) as total_spent,
+        ROUND(AVG(earnings)::numeric, 2) as avg_per_trip
+      FROM reservations
+      WHERE status != 'cancelled'
+      GROUP BY guest_name
+      ORDER BY total_spent DESC
+      LIMIT 10
+    `;
+
+    const avgUtilization = vehicleStats.length > 0
+      ? Math.round(vehicleStats.reduce((sum, v) => sum + v.utilizationRate, 0) / vehicleStats.length * 10) / 10
+      : 0;
 
     return NextResponse.json({
       summary: {
-        totalRevenue: Math.round(totalRevenue * 100) / 100,
-        totalTrips,
-        totalDays,
-        avgEarningsPerTrip: Math.round(avgEarningsPerTrip * 100) / 100,
-        avgTripDays: Math.round(avgTripDays * 10) / 10,
-        uniqueGuests,
-        cancelledTrips: cancelled.length,
+        totalRevenue: Number(s.total_revenue),
+        totalTrips: Number(s.total_trips),
+        avgEarningsPerTrip: Number(s.avg_earnings_per_trip),
+        avgTripDays: Number(s.avg_trip_days),
+        uniqueGuests: Number(s.unique_guests),
+        cancelledTrips: Number(s.cancelled_trips),
+        activeTrips: Number(s.active_trips),
+        bookedTrips: Number(s.booked_trips),
+        avgUtilization,
       },
       vehicleStats,
       monthlyStats,
+      weekdayStats,
+      topGuests: guestsResult.rows.map(r => ({
+        name: r.guest_name,
+        trips: Number(r.trips),
+        totalSpent: Number(r.total_spent),
+        avgPerTrip: Number(r.avg_per_trip),
+      })),
     });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (error) {
+    console.error('Analytics error:', error);
+    return NextResponse.json({ error: 'Failed to fetch analytics' }, { status: 500 });
   }
 }
