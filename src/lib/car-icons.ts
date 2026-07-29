@@ -11,12 +11,15 @@ interface CarIcon {
 const ICON_PLATES: Record<string, string> = {
   '6WEK555': '6WEK555.webp',
   '7BXV391': '7BXV391.webp',
+  '7DBY474': '7DBY474.webp',
+  '7DSC885': '7DSC885.webp',
   '7EHU865': '7EHU865.webp',
+  '7FPR942': '7FPR942.webp',
   '7JAF140': '7JAF140.webp',
   '7NRH469': '7NRH469.webp',
   '7RBK253': '7RBK253.webp',
   '7RXF934': '7RXF934.webp',
-  '7STE017': '7STE017.png',
+  '7STE017': '7STE017.webp',
   '8EVL825': '8EVL825.webp',
   '8FMU623': '8FMU623.webp',
   '8GOF095': '8GOF095.webp',
@@ -31,10 +34,14 @@ const ICON_PLATES: Record<string, string> = {
   '9EKF941': '9EKF941.webp',
   '9FVF046': '9FVF046.webp',
   '9LJD332': '9LJD332.webp',
+  '9RNT319': '9RNT319.webp',
   '9RPA138': '9RPA138.webp',
+  '9TMZ396': '9TMZ396.webp',
   '9UOC437': '9UOC437.webp',
+  '9VFX146': '9VFX146.webp',
   '9WUA725': '9WUA725.webp',
   '9XBP640': '9XBP640.webp',
+  '9XTY709': '9XTY709.webp',
 };
 
 /** Returns the photo URL for a plate, or null if no icon exists */
