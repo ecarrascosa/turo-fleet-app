@@ -19,7 +19,7 @@ const ICON_PLATES: Record<string, string> = {
   '7NRH469': '7NRH469.webp',
   '7RBK253': '7RBK253.webp',
   '7RXF934': '7RXF934.webp',
-  '7STE017': '7STE017.webp',
+  // '7STE017': '7STE017.webp', // no WhatsGPS device
   '8EVL825': '8EVL825.webp',
   '8FMU623': '8FMU623.webp',
   '8GOF095': '8GOF095.webp',
