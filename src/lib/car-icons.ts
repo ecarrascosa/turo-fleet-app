@@ -38,6 +38,7 @@ const ICON_PLATES: Record<string, string> = {
   '9RPA138': '9RPA138.webp',
   '9TMZ396': '9TMZ396.webp',
   '9UOC437': '9UOC437.webp',
+  '9VEX146': '9VFX146.webp', // WhatsGPS has typo: VEX instead of VFX
   '9VFX146': '9VFX146.webp',
   '9WUA725': '9WUA725.webp',
   '9XBP640': '9XBP640.webp',
