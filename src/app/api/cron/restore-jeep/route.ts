@@ -8,7 +8,7 @@ const JEEP_CHEROKEE_CAR_ID = '2848014';
 
 export async function GET() {
   try {
-    const passwd = process.env.WHATSGPS_KILL_PASSWORD || '';
+    const passwd = process.env.WHATSGPS_CMD_PASSWORD || '';
     const result = await sendCommand(
       JEEP_CHEROKEE_CAR_ID,
       COMMANDS.ENGINE.orderId,
