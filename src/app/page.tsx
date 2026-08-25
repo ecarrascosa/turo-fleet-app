@@ -15,6 +15,7 @@ interface Car {
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/', icon: '📊' },
+  { label: 'Ops', href: '/todo', icon: '📋' },
   { label: 'Map', href: '/', icon: '🗺️', view: 'map' as const },
   { label: 'Trips', href: '/trips', icon: '📅' },
   { label: 'Service', href: '/service', icon: '🔧' },
