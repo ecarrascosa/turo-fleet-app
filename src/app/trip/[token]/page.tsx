@@ -15,6 +15,7 @@ interface TripData {
   car: { lat: number; lon: number; name: string; plate: string; locked: boolean };
   tripStatus: 'upcoming' | 'active' | 'grace' | 'ended';
   timeLeft: string;
+  hasRemoteControl?: boolean;
 }
 
 type ViewState = 'upcoming' | 'ongoing' | 'history';
@@ -109,7 +110,7 @@ export default function GuestTripPage() {
     </div>
   );
 
-  const { reservation, car } = data;
+  const { reservation, car, hasRemoteControl = true } = data;
   const view = testMode ? 'ongoing' as ViewState : computeView(reservation.tripStart, reservation.tripEnd);
   const photo = car.plate ? getCarPhoto(car.plate) : null;
   const hasLocation = car.lat !== 0 && car.lon !== 0;
@@ -174,9 +175,11 @@ export default function GuestTripPage() {
         </div>
 
         {/* No controls message */}
-        <div className="mx-4 mt-4 text-center text-gray-400 text-sm py-4 border border-gray-200 rounded-xl">
-          Lock &amp; unlock controls will be available when your trip starts
-        </div>
+        {hasRemoteControl && (
+          <div className="mx-4 mt-4 text-center text-gray-400 text-sm py-4 border border-gray-200 rounded-xl">
+            Lock &amp; unlock controls will be available when your trip starts
+          </div>
+        )}
 
         {/* Navigate — available before trip starts too */}
         {hasLocation && (
@@ -220,26 +223,30 @@ export default function GuestTripPage() {
         {photo && <div className="rounded-xl overflow-hidden mb-3"><img src={photo} alt={car.name} className="w-full h-48 object-cover" /></div>}
         <h2 className="text-2xl font-bold text-gray-900">{car.name}</h2>
         {car.plate && <p className="text-gray-500 text-sm mt-0.5">Plate: {car.plate}</p>}
-        <div className="mt-2">
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${car.locked ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-            {car.locked ? '🔒 Locked' : '🔓 Unlocked'}
-          </span>
-        </div>
+        {hasRemoteControl && (
+          <div className="mt-2">
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${car.locked ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+              {car.locked ? '🔒 Locked' : '🔓 Unlocked'}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Lock / Unlock */}
-      <div className="mx-4 mt-5 space-y-3">
-        {!isGrace && (
-          <button onClick={() => sendCmd('unlock')} disabled={!!cmdLoading}
-            className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:opacity-50 text-white font-semibold py-4 rounded-xl transition-colors text-lg">
-            {cmdLoading === 'unlock' ? 'Unlocking...' : '🔓 Unlock Car'}
+      {/* Lock / Unlock — only for cars with WhatsGPS remote control */}
+      {hasRemoteControl && (
+        <div className="mx-4 mt-5 space-y-3">
+          {!isGrace && (
+            <button onClick={() => sendCmd('unlock')} disabled={!!cmdLoading}
+              className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:opacity-50 text-white font-semibold py-4 rounded-xl transition-colors text-lg">
+              {cmdLoading === 'unlock' ? 'Unlocking...' : '🔓 Unlock Car'}
+            </button>
+          )}
+          <button onClick={() => sendCmd('lock')} disabled={!!cmdLoading}
+            className="w-full bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-50 text-white font-semibold py-4 rounded-xl transition-colors text-lg">
+            {cmdLoading === 'lock' ? 'Locking...' : '🔒 Lock Car'}
           </button>
-        )}
-        <button onClick={() => sendCmd('lock')} disabled={!!cmdLoading}
-          className="w-full bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-50 text-white font-semibold py-4 rounded-xl transition-colors text-lg">
-          {cmdLoading === 'lock' ? 'Locking...' : '🔒 Lock Car'}
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* Navigate */}
       {hasLocation && (

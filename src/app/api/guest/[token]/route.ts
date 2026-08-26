@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getReservationByToken } from '@/lib/reservations';
 import { getFleet } from '@/lib/whatsgps';
+import { getBouncieVehicles } from '@/lib/bouncie';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -54,15 +55,45 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     const { status: tripStatus, timeLeft } = getTripStatus(reservation.tripStart, reservation.tripEnd);
 
     let car = { lat: 0, lon: 0, name: '', plate: '', locked: false };
+    let hasRemoteControl = false;
+
     if (reservation.carId) {
+      // Car matched to WhatsGPS — has lock/unlock
       try {
         const fleet = await getFleet();
         const found = fleet.find(c => c.carId === reservation.carId);
         if (found) {
           car = { lat: found.lat, lon: found.lon, name: found.name, plate: found.plate, locked: found.locked };
+          hasRemoteControl = true;
         }
       } catch (e) {
         console.error('Failed to get car location:', e);
+      }
+    }
+
+    // Fallback: check Bouncie for GPS-only cars (no lock/unlock)
+    if (!hasRemoteControl && !reservation.carId) {
+      try {
+        const bouncieVehicles = await getBouncieVehicles();
+        const model = (reservation.vehicleModel || '').toLowerCase();
+        const year = reservation.vehicleYear || '';
+        const match = bouncieVehicles.find(v => {
+          const bModel = v.model.name.toLowerCase();
+          const bMake = v.model.make.toLowerCase();
+          const bYear = String(v.model.year);
+          return bYear === year && (model.includes(bModel) || model.includes(bMake));
+        });
+        if (match?.stats?.location) {
+          car = {
+            lat: match.stats.location.lat,
+            lon: match.stats.location.lon,
+            name: `${match.model.year} ${match.model.make} ${match.model.name}`,
+            plate: '',
+            locked: false,
+          };
+        }
+      } catch (e) {
+        console.error('Failed to get Bouncie location:', e);
       }
     }
 
@@ -70,7 +101,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       car.name = `${reservation.vehicleModel} ${reservation.vehicleYear}`.trim();
     }
 
-    return NextResponse.json({ reservation, car, tripStatus, timeLeft });
+    return NextResponse.json({ reservation, car, tripStatus, timeLeft, hasRemoteControl });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
