@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   { label: 'Map', href: '/', icon: '🗺️', view: 'map' as const },
   { label: 'Trips', href: '/trips', icon: '📅' },
   { label: 'Service', href: '/service', icon: '🔧' },
-  { label: 'Analytics', href: '/analytics', icon: '📈' },
+  // { label: 'Analytics', href: '/analytics', icon: '📈' }, // temporarily hidden
 ];
 
 function Sidebar({ currentPath, activeView, onViewChange }: { currentPath: string; activeView: string; onViewChange: (view: 'dashboard' | 'map') => void }) {
