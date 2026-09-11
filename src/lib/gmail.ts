@@ -115,8 +115,11 @@ export async function fetchTuroEmails(maxResults = 20, afterDate?: string, types
     booked: [`from:noreply@mail.turo.com subject:"is booked"${dateFilter}`],
     cancelled: [
       `from:noreply@mail.turo.com subject:"has cancelled"${dateFilter}`,
+      `from:noreply@mail.turo.com subject:"has canceled"${dateFilter}`,
       `from:noreply@mail.turo.com subject:"You've cancelled"${dateFilter}`,
+      `from:noreply@mail.turo.com subject:"You've canceled"${dateFilter}`,
       `from:noreply@mail.turo.com subject:"Turo cancelled"${dateFilter}`,
+      `from:noreply@mail.turo.com subject:"Turo canceled"${dateFilter}`,
     ],
     modified: [
       `from:noreply@mail.turo.com subject:"has changed"${dateFilter}`,
