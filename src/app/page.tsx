@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { label: 'Map', href: '/', icon: '🗺️', view: 'map' as const },
   { label: 'Trips', href: '/trips', icon: '📅' },
   { label: 'Service', href: '/service', icon: '🔧' },
+  { label: 'Tasks', href: '/tasks/employee', icon: '✅' },
   // { label: 'Analytics', href: '/analytics', icon: '📈' }, // temporarily hidden
 ];
 
