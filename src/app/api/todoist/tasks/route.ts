@@ -73,11 +73,17 @@ export async function GET() {
       const txt = await res.text();
       return NextResponse.json({ error: `Todoist API error: ${res.status} ${txt}` }, { status: 500 });
     }
-    const todoistTasks: TodoistTask[] = await res.json();
+    const resBody = await res.json();
+    const todoistTasks: TodoistTask[] = resBody.results || resBody;
 
-    // Fetch fleet for GPS matching
+    // Fetch fleet for GPS matching (with 8s timeout)
     let fleet: Car[] = [];
-    try { fleet = await getFleet(); } catch (e) { console.error('Fleet fetch failed, continuing without GPS:', e); }
+    try {
+      fleet = await Promise.race([
+        getFleet(),
+        new Promise<Car[]>((_, reject) => setTimeout(() => reject(new Error('Fleet timeout')), 8000)),
+      ]);
+    } catch (e) { console.error('Fleet fetch failed, continuing without GPS:', e); }
 
     // Group by action
     const groupMap: Record<string, any[]> = {};
