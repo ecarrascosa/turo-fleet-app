@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getFleet, Car } from '@/lib/whatsgps';
 
+export const dynamic = 'force-dynamic';
+
 const TODOIST_TOKEN = process.env.TODOIST_API_TOKEN!;
 const PROJECT_ID = '6hfWmHvCwCHwQvH2';
 const API_BASE = 'https://api.todoist.com/api/v1';
