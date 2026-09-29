@@ -47,7 +47,7 @@ export default function EmployeeTaskBoard() {
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/tasks/todoist');
+      const res = await fetch('/api/todoist/tasks');
       const data = await res.json();
       setGroups(data.groups || []);
     } catch {}
@@ -59,7 +59,7 @@ export default function EmployeeTaskBoard() {
   const toggleTask = async (task: Task) => {
     setToggling(task.id);
     try {
-      await fetch(`/api/tasks/todoist/${task.id}/toggle`, {
+      await fetch(`/api/todoist/tasks/${task.id}/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ done: task.done }),
