@@ -16,6 +16,7 @@ interface TripData {
   tripStatus: 'upcoming' | 'active' | 'grace' | 'ended';
   timeLeft: string;
   hasRemoteControl?: boolean;
+  address?: string;
 }
 
 type ViewState = 'upcoming' | 'ongoing' | 'history';
@@ -110,11 +111,15 @@ export default function GuestTripPage() {
     </div>
   );
 
-  const { reservation, car, hasRemoteControl = true } = data;
+  const { reservation, car, hasRemoteControl = true, address } = data;
   const view = testMode ? 'ongoing' as ViewState : computeView(reservation.tripStart, reservation.tripEnd);
   const photo = car.plate ? getCarPhoto(car.plate) : null;
   const hasLocation = car.lat !== 0 && car.lon !== 0;
-  const mapsUrl = hasLocation ? `https://www.google.com/maps/dir/?api=1&destination=${car.lat},${car.lon}` : null;
+  const mapsUrl = hasLocation
+    ? address
+      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${car.lat},${car.lon}`
+    : null;
 
   const startMs = new Date(reservation.tripStart).getTime();
   const endMs = new Date(reservation.tripEnd).getTime();

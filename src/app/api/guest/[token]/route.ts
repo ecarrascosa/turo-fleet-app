@@ -101,7 +101,33 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       car.name = `${reservation.vehicleModel} ${reservation.vehicleYear}`.trim();
     }
 
-    return NextResponse.json({ reservation, car, tripStatus, timeLeft, hasRemoteControl });
+    // Reverse-geocode to get street address for navigation
+    let address = '';
+    if (car.lat && car.lon) {
+      try {
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${car.lat}&lon=${car.lon}&format=json&addressdetails=1`,
+          { headers: { 'User-Agent': 'TuroFleetApp/1.0' } }
+        );
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          if (geoData.address) {
+            const a = geoData.address;
+            const parts = [
+              a.house_number && a.road ? `${a.house_number} ${a.road}` : a.road,
+              a.city || a.town || a.village,
+              a.state,
+              a.postcode,
+            ].filter(Boolean);
+            address = parts.join(', ');
+          }
+        }
+      } catch (e) {
+        console.error('Reverse geocode failed:', e);
+      }
+    }
+
+    return NextResponse.json({ reservation, car, tripStatus, timeLeft, hasRemoteControl, address });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
