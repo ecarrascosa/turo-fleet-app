@@ -116,9 +116,7 @@ export default function GuestTripPage() {
   const photo = car.plate ? getCarPhoto(car.plate) : null;
   const hasLocation = car.lat !== 0 && car.lon !== 0;
   const mapsUrl = hasLocation
-    ? address
-      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
-      : `https://www.google.com/maps/dir/?api=1&destination=${car.lat},${car.lon}`
+    ? `https://www.google.com/maps/dir/?api=1&destination=${car.lat},${car.lon}`
     : null;
 
   const startMs = new Date(reservation.tripStart).getTime();
