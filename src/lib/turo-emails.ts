@@ -13,7 +13,7 @@
  */
 
 export interface TuroEmail {
-  type: 'booked' | 'cancelled' | 'modified' | 'message';
+  type: 'booked' | 'cancelled' | 'modified' | 'message' | 'swap_accepted' | 'swap_declined' | 'info';
   reservationId: string;
   guestName: string;
   guestPhone?: string;
@@ -34,7 +34,12 @@ export function parseTuroEmail(text: string, htmlBody?: string): TuroEmail | nul
 
   // Determine type
   let type: TuroEmail['type'];
-  if (/trip is booked/i.test(text)) {
+  // Vehicle swaps first: the "declined" email also says "the trip has been canceled"
+  if (/accepted your vehicle swap request|approved the vehicle swap/i.test(text)) {
+    type = 'swap_accepted';
+  } else if (/declined your vehicle swap request/i.test(text)) {
+    type = 'swap_declined';
+  } else if (/trip is booked/i.test(text)) {
     type = 'booked';
   } else if (/has cancell?ed their trip/i.test(text) || /Turo (?:has )?cancell?ed/i.test(text) || /You['']ve cancell?ed/i.test(text) || /trip (?:has been |was )?cancell?ed/i.test(text)) {
     type = 'cancelled';
@@ -42,18 +47,24 @@ export function parseTuroEmail(text: string, htmlBody?: string): TuroEmail | nul
     type = 'modified';
   } else if (/has sent you a message/i.test(text)) {
     type = 'message';
+  } else if (/Reservation ID\s*#\d+/i.test(text)) {
+    // Any other Turo email about a trip (upcoming-trip reminder, rating, etc.).
+    // Still useful: it tells us which car the trip is currently on.
+    type = 'info';
   } else {
     return null;
   }
 
   // Reservation ID
   const resMatch = text.match(/Reservation ID\s*#(\d+)/i);
-  const reservationId = resMatch?.[1] || '';
+  // Swap emails have no "Reservation ID #" line, just "...for their trip 62078036..."
+  const reservationId = resMatch?.[1] || text.match(/\btrip (\d{7,9})\b/i)?.[1] || '';
   if (!reservationId) return null;
 
   // Guest name
   let guestName = '';
   const guestPatterns = [
+    /(\w[\w ]*?) (?:accepted|declined) your vehicle swap/i,
     /(\w+)'s trip is booked/i,
     /(\w+) has cancelled/i,
     /cancelled (\w+)[''']s trip/i,

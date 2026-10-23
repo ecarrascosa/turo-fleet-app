@@ -12,6 +12,16 @@ interface Reservation {
   status: 'booked' | 'active' | 'completed' | 'cancelled';
   carId?: string;
   renterToken?: string;
+  swapStatus?: 'pending' | 'needs_pick' | 'swapped' | 'confirmed' | 'declined';
+  vehicleHistory?: Array<{ at: string; from: string; to: string; source: string }>;
+}
+
+interface CarOption {
+  carId: string | null;
+  vehicleYear: string;
+  vehicleModel: string;
+  hasGps: boolean;
+  label: string;
 }
 
 type Tab = 'active' | 'past';
@@ -101,6 +111,94 @@ function DateTag({ date, color }: { date: string; color: 'green' | 'red' | 'gray
     <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg border ${colorClasses[color]}`}>
       {formatted}
     </span>
+  );
+}
+
+/** Swap badge + "Pick car" picker. Shown when a guest accepted a vehicle swap. */
+function SwapPicker({ res, onDone, notify }: {
+  res: Reservation;
+  onDone: () => void;
+  notify: (msg: string, type?: 'success' | 'error') => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState<CarOption[]>([]);
+  const [choice, setChoice] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const s = res.swapStatus;
+  if (!s || s === 'declined') return null;
+  const unresolved = s === 'pending' || s === 'needs_pick';
+  const last = res.vehicleHistory && res.vehicleHistory.length ? res.vehicleHistory[res.vehicleHistory.length - 1] : null;
+
+  const openPicker = async () => {
+    setOpen(true);
+    if (options.length) return;
+    try {
+      const r = await fetch('/api/reservations/car-options');
+      const d = await r.json();
+      setOptions(d.cars || []);
+    } catch { notify('Could not load cars', 'error'); }
+  };
+
+  const save = async () => {
+    const opt = options[parseInt(choice)];
+    if (!opt) return;
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/reservations/${res.reservationId}/assign-car`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ carId: opt.carId, vehicleYear: opt.vehicleYear, vehicleModel: opt.vehicleModel }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      notify(`${res.guestName}'s trip is now on the ${opt.vehicleYear} ${opt.vehicleModel}`);
+      setOpen(false);
+      onDone();
+    } catch (err: any) {
+      notify(err.message || 'Could not save', 'error');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="mb-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {unresolved ? (
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+            🔁 Swap accepted — pick car
+          </span>
+        ) : (
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+            ✓ Swapped{last ? ` from ${last.from}` : ''}{s === 'confirmed' ? ' (picked)' : ''}
+          </span>
+        )}
+        {!open && (
+          <button
+            onClick={openPicker}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium ${unresolved ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >{unresolved ? 'Pick car' : 'Change'}</button>
+        )}
+      </div>
+      {open && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <select
+            value={choice}
+            onChange={e => setChoice(e.target.value)}
+            className="text-sm border border-gray-300 rounded-md px-2 py-1 max-w-full"
+          >
+            <option value="">{options.length ? 'Which car did you swap to?' : 'Loading cars…'}</option>
+            {options.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
+          </select>
+          <button
+            onClick={save}
+            disabled={choice === '' || saving}
+            className="px-3 py-1 rounded-md text-xs font-medium bg-cyan-600 text-white disabled:opacity-40"
+          >{saving ? 'Saving…' : 'Save'}</button>
+          <button onClick={() => setOpen(false)} className="px-2 py-1 text-xs text-gray-500">Cancel</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -399,6 +497,7 @@ export default function TripsPage() {
                               <h3 className="font-bold text-gray-900">{res.guestName}</h3>
                             </div>
                             <p className="text-sm text-gray-600 mb-2">🚗 {res.vehicleYear} {res.vehicleModel}</p>
+                            <SwapPicker res={res} onDone={fetchData} notify={showToast} />
                             {res.renterToken && (
                               <div className="mt-3 flex items-center gap-2">
                                 <div className="flex-1 min-w-0 bg-gray-50 rounded-lg border border-gray-200 px-3 py-2 flex items-center gap-2">
@@ -472,6 +571,7 @@ export default function TripsPage() {
                               <h3 className="font-bold text-gray-900">{res.guestName}</h3>
                             </div>
                             <p className="text-sm text-gray-600 mb-2">🚗 {res.vehicleYear} {res.vehicleModel}</p>
+                            <SwapPicker res={res} onDone={fetchData} notify={showToast} />
                           </div>
                         </div>
                       </div>

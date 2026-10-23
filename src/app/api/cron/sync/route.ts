@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchTuroEmails } from '@/lib/gmail';
 import { parseTuroEmail } from '@/lib/turo-emails';
-import { initDB, upsertFromEmail } from '@/lib/reservations';
+import { initDB, upsertFromEmail, alertSlack } from '@/lib/reservations';
 import { getFleet } from '@/lib/whatsgps';
 
 export const dynamic = 'force-dynamic';
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
       try {
         const parsed = parseTuroEmail(email.body || email.subject, email.htmlBody);
         if (parsed) {
-          await upsertFromEmail(parsed, fleetCars);
+          await upsertFromEmail(parsed, fleetCars, email.date);
           processed++;
         } else {
           skipped++;
@@ -85,8 +85,31 @@ export async function GET(req: NextRequest) {
       console.error('Rematch step failed:', e.message);
     }
 
+    // Swaps still unresolved 3 hours before pickup: ask a human to pick the car
+    let swapsNeedPick = 0;
+    try {
+      const { sql } = await import('@vercel/postgres');
+      const esc = await sql`
+        UPDATE reservations SET swap_status = 'needs_pick', updated_at = NOW()
+        WHERE swap_status = 'pending' AND status IN ('booked', 'active')
+          AND trip_start < NOW() + INTERVAL '3 hours'
+        RETURNING reservation_id, guest_name, vehicle_year, vehicle_model, trip_start
+      `;
+      for (const r of esc.rows) {
+        swapsNeedPick++;
+        const start = new Date(r.trip_start).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
+        await alertSlack(
+          `⚠️ Swap — pick car: Res #${r.reservation_id} (${r.guest_name}) starts ${start} and we still don't know ` +
+          `which car it was swapped to (was ${r.vehicle_year} ${(r.vehicle_model || '').trim()}). Pick it in the Trips page.`
+        );
+      }
+    } catch (e: any) {
+      console.error('Swap escalation failed:', e.message);
+    }
+
     return NextResponse.json({
       success: true,
+      swapsNeedPick,
       emailsFetched: emails.length,
       processed,
       skipped,

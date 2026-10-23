@@ -4,8 +4,12 @@ import { TuroEmail } from './turo-emails';
 
 const SLACK_WEBHOOK = process.env.SLACK_WEBHOOK;
 
-async function alertSlack(message: string) {
-  if (!SLACK_WEBHOOK) return;
+let slackMuted = false;
+/** Silence Slack alerts (used by the one-off swap backfill so it doesn't post 30 old swaps). */
+export function muteSlack(muted: boolean) { slackMuted = muted; }
+
+export async function alertSlack(message: string) {
+  if (!SLACK_WEBHOOK || slackMuted) return;
   try {
     await fetch(SLACK_WEBHOOK, {
       method: 'POST',
@@ -15,6 +19,15 @@ async function alertSlack(message: string) {
   } catch (e) {
     console.error('Slack alert failed:', e);
   }
+}
+
+export interface VehicleChange {
+  at: string;      // when the change happened (email date)
+  from: string;    // e.g. "2014 BMW 3 Series"
+  to: string;      // e.g. "2014 BMW X3"
+  fromCarId?: string | null;
+  toCarId?: string | null;
+  source: string;  // email type that revealed it, or 'manual'
 }
 
 export interface GuestMessage {
@@ -38,6 +51,11 @@ export interface Reservation {
   carId?: string; // WhatsGPS car ID
   renterToken: string; // unique token for shareable link
   messages: GuestMessage[];
+  /** Vehicle swap state: pending (guest accepted, new car unknown), needs_pick (we can't tell which car),
+   *  swapped (new car found in a later Turo email), confirmed (picked by hand), declined (guest declined, trip cancelled) */
+  swapStatus?: 'pending' | 'needs_pick' | 'swapped' | 'confirmed' | 'declined';
+  swapAt?: string;
+  vehicleHistory?: VehicleChange[];
   createdAt: string;
   updatedAt: string;
 }
@@ -68,6 +86,10 @@ export async function initDB() {
   await sql`CREATE INDEX IF NOT EXISTS idx_res_renter_token ON reservations(renter_token)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_res_status ON reservations(status)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_res_reservation_id ON reservations(reservation_id)`;
+  // Vehicle swap tracking
+  await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS swap_status VARCHAR(20)`;
+  await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS swap_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS vehicle_history JSONB DEFAULT '[]'`;
 }
 
 function generateToken(): string {
@@ -91,6 +113,9 @@ function rowToReservation(row: any): Reservation {
     carId: row.car_id || undefined,
     renterToken: row.renter_token,
     messages: row.messages || [],
+    swapStatus: row.swap_status || undefined,
+    swapAt: row.swap_at || undefined,
+    vehicleHistory: row.vehicle_history || [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -282,11 +307,128 @@ export async function getDuplicateOptions(
 }
 
 /** Upsert a reservation from a parsed Turo email */
+const normModel = (s?: string) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+/** Record a vehicle swap: "accepted" marks the trip pending until we learn the new car; "declined" cancels it. */
+async function handleSwapEmail(email: TuroEmail, emailDate?: string): Promise<Reservation> {
+  const when = emailDate ? new Date(emailDate).toISOString() : new Date().toISOString();
+  // The `swap_at < when` guard makes this safe to re-run: the sync re-reads the same email every 10 minutes.
+  if (email.type === 'swap_accepted') {
+    const r = await sql`
+      UPDATE reservations SET swap_status = 'pending', swap_at = ${when}, updated_at = NOW()
+      WHERE reservation_id = ${email.reservationId} AND (swap_at IS NULL OR swap_at < ${when})
+      RETURNING guest_name, vehicle_year, vehicle_model, trip_start
+    `;
+    if (r.rowCount) {
+      const row = r.rows[0];
+      await alertSlack(
+        `🔁 Swap accepted — Res #${email.reservationId} (${row.guest_name})\n` +
+        `Was: ${row.vehicle_year} ${(row.vehicle_model || '').trim()}. New car not known yet — ` +
+        `it will update from the next Turo email, or pick it in the Trips page.`
+      );
+    }
+  } else {
+    await sql`
+      UPDATE reservations SET status = 'cancelled', swap_status = 'declined', swap_at = ${when}, updated_at = NOW()
+      WHERE reservation_id = ${email.reservationId} AND (swap_at IS NULL OR swap_at < ${when})
+    `;
+  }
+  return (await getReservationById(email.reservationId)) || ({} as Reservation);
+}
+
+/**
+ * Every Turo email about a trip names the car the trip is CURRENTLY on.
+ * If it differs from what we have (and the email is newer than our last change), the car was swapped.
+ */
+async function applyVehicleFromEmail(email: TuroEmail, emailDate?: string) {
+  if (!email.reservationId || !email.vehicleModel || !email.vehicleYear || !emailDate) return;
+  const res = await sql`
+    SELECT guest_name, vehicle_model, vehicle_year, car_id, location, swap_status, swap_at, vehicle_history
+    FROM reservations WHERE reservation_id = ${email.reservationId}
+  `;
+  const row = res.rows[0];
+  if (!row) return;
+  // A car picked by hand always wins over what emails say
+  if (row.swap_status === 'confirmed') return;
+
+  const when = new Date(emailDate);
+  const history: VehicleChange[] = row.vehicle_history || [];
+  const lastChange = history.length ? new Date(history[history.length - 1].at) : null;
+  if (lastChange && when <= lastChange) return; // older than the last change we applied
+
+  const afterSwap = row.swap_at ? when > new Date(row.swap_at) : false;
+  const sameModel = normModel(row.vehicle_model) === normModel(email.vehicleModel);
+  // A blank stored year (older parser) is not a different car
+  const sameVehicle = sameModel && (!row.vehicle_year || row.vehicle_year === email.vehicleYear);
+  if (sameVehicle && !row.vehicle_year) {
+    await sql`UPDATE reservations SET vehicle_year = ${email.vehicleYear} WHERE reservation_id = ${email.reservationId}`;
+  }
+
+  if (sameVehicle) {
+    // Swap accepted but the email still shows the same model+year: a swap between two identical
+    // models (e.g. the two 2025 Corollas). Email can't tell them apart — ask a human.
+    if (row.swap_status === 'pending' && afterSwap) {
+      await sql`UPDATE reservations SET swap_status = 'needs_pick', updated_at = NOW() WHERE reservation_id = ${email.reservationId}`;
+      await alertSlack(
+        `⚠️ Swap — pick car: Res #${email.reservationId} (${row.guest_name}) still shows ` +
+        `${email.vehicleYear} ${email.vehicleModel} after the swap. Pick the right car in the Trips page.`
+      );
+    }
+    return;
+  }
+
+  // Different car: only trust it after a swap email (Turo always sends one). Anything else is
+  // more likely a parsing glitch or an email from before the swap, so leave the trip alone.
+  if (!afterSwap) return;
+
+  const carId = await matchCarId(email.vehicleModel, email.vehicleYear, email.location || row.location || undefined);
+  let nextStatus = 'swapped';
+  if (!carId && (await getDuplicateOptions(email.vehicleModel, email.vehicleYear)).length > 1) nextStatus = 'needs_pick';
+
+  history.push({
+    at: when.toISOString(),
+    from: `${row.vehicle_year || ''} ${(row.vehicle_model || '').trim()}`.trim(),
+    to: `${email.vehicleYear} ${email.vehicleModel}`,
+    fromCarId: row.car_id || null,
+    toCarId: carId || null,
+    source: email.type,
+  });
+  await sql`
+    UPDATE reservations SET
+      vehicle_model = ${email.vehicleModel},
+      vehicle_year = ${email.vehicleYear},
+      car_id = ${carId || null},
+      swap_status = ${nextStatus},
+      swap_at = COALESCE(swap_at, ${when.toISOString()}),
+      vehicle_history = ${JSON.stringify(history)}::jsonb,
+      updated_at = NOW()
+    WHERE reservation_id = ${email.reservationId}
+  `;
+  await alertSlack(
+    `🔁 Swap detected — Res #${email.reservationId} (${row.guest_name}): ` +
+    `${history[history.length - 1].from} → ${email.vehicleYear} ${email.vehicleModel}` +
+    (nextStatus === 'needs_pick' ? ' — two cars of this model, pick the right one in the Trips page.' : '')
+  );
+}
+
 export async function upsertFromEmail(
   email: TuroEmail,
-  fleetCars?: Array<{ carId: string; name: string }>
+  fleetCars?: Array<{ carId: string; name: string }>,
+  emailDate?: string
 ): Promise<Reservation> {
   const now = new Date().toISOString();
+
+  // Vehicle swaps
+  if (email.type === 'swap_accepted' || email.type === 'swap_declined') {
+    return handleSwapEmail(email, emailDate);
+  }
+  // Any later email can reveal the car the trip is now on (the booking email itself can't)
+  if (email.type !== 'booked') {
+    await applyVehicleFromEmail(email, emailDate);
+  }
+  if (email.type === 'info') {
+    return (await getReservationById(email.reservationId)) || ({} as Reservation);
+  }
 
   // Handle cancellation
   if (email.type === 'cancelled') {
@@ -340,9 +482,9 @@ export async function upsertFromEmail(
         trip_start = COALESCE(${email.tripStart || null}::timestamptz, trip_start),
         trip_end = COALESCE(${email.tripEnd || null}::timestamptz, trip_end),
         earnings = COALESCE(${email.earnings ?? null}, earnings),
-        vehicle_model = COALESCE(${email.vehicleModel || null}, vehicle_model),
-        vehicle_year = COALESCE(${email.vehicleYear || null}, vehicle_year),
-        car_id = COALESCE(${carId || null}, car_id),
+        vehicle_model = CASE WHEN swap_status IS NOT NULL THEN vehicle_model ELSE COALESCE(${email.vehicleModel || null}, vehicle_model) END,
+        vehicle_year = CASE WHEN swap_status IS NOT NULL THEN vehicle_year ELSE COALESCE(${email.vehicleYear || null}, vehicle_year) END,
+        car_id = CASE WHEN swap_status IS NOT NULL THEN car_id ELSE COALESCE(${carId || null}, car_id) END,
         updated_at = NOW()
       WHERE reservation_id = ${email.reservationId}
     `;
@@ -406,9 +548,10 @@ export async function upsertFromEmail(
       earnings = COALESCE(EXCLUDED.earnings, reservations.earnings),
       distance_included = COALESCE(EXCLUDED.distance_included, reservations.distance_included),
       location = COALESCE(EXCLUDED.location, reservations.location),
-      vehicle_model = COALESCE(EXCLUDED.vehicle_model, reservations.vehicle_model),
-      vehicle_year = COALESCE(EXCLUDED.vehicle_year, reservations.vehicle_year),
-      car_id = COALESCE(EXCLUDED.car_id, reservations.car_id),
+      -- Once a swap is known, never let the original booking email (re-read every sync) put the old car back
+      vehicle_model = CASE WHEN reservations.swap_status IS NOT NULL THEN reservations.vehicle_model ELSE COALESCE(EXCLUDED.vehicle_model, reservations.vehicle_model) END,
+      vehicle_year = CASE WHEN reservations.swap_status IS NOT NULL THEN reservations.vehicle_year ELSE COALESCE(EXCLUDED.vehicle_year, reservations.vehicle_year) END,
+      car_id = CASE WHEN reservations.swap_status IS NOT NULL THEN reservations.car_id ELSE COALESCE(EXCLUDED.car_id, reservations.car_id) END,
       updated_at = NOW()
   `;
 

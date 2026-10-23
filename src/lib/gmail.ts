@@ -105,7 +105,9 @@ export interface GmailMessage {
 /**
  * Fetch Turo notification emails from Gmail.
  */
-export async function fetchTuroEmails(maxResults = 20, afterDate?: string, types?: ('booked' | 'cancelled' | 'modified')[]): Promise<GmailMessage[]> {
+export type TuroEmailQueryType = 'booked' | 'cancelled' | 'modified' | 'swap' | 'info';
+
+export async function fetchTuroEmails(maxResults = 20, afterDate?: string, types?: TuroEmailQueryType[]): Promise<GmailMessage[]> {
   const dateFilter = afterDate ? (() => {
     const d = new Date(afterDate);
     return ` after:${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
@@ -125,10 +127,28 @@ export async function fetchTuroEmails(maxResults = 20, afterDate?: string, types
       `from:noreply@mail.turo.com subject:"has changed"${dateFilter}`,
       `from:noreply@mail.turo.com subject:"change request"${dateFilter}`,
     ],
+    // Vehicle swaps — these emails never name the new car
+    swap: [`from:noreply@mail.turo.com subject:"vehicle swap request"${dateFilter}`],
+    // Other trip emails — each one names the car the trip is currently on
+    info: [
+      `from:noreply@mail.turo.com subject:"sent you a message"${dateFilter}`,
+      `from:noreply@mail.turo.com subject:"upcoming trip"${dateFilter}`,
+      `from:noreply@mail.turo.com subject:"just rated"${dateFilter}`,
+      `from:noreply@mail.turo.com subject:"request to change"${dateFilter}`,
+    ],
   };
 
-  const selectedTypes = types || ['booked', 'cancelled', 'modified'];
+  const selectedTypes = types || ['booked', 'cancelled', 'modified', 'swap', 'info'];
   const queries = selectedTypes.flatMap(t => allQueries[t] || []);
+  return fetchByQueries(queries, maxResults);
+}
+
+/** Fetch all Turo emails matching a free-form Gmail search (e.g. a reservation number). */
+export async function searchTuroEmails(query: string, maxResults = 50): Promise<GmailMessage[]> {
+  return fetchByQueries([`from:noreply@mail.turo.com ${query}`], maxResults);
+}
+
+async function fetchByQueries(queries: string[], maxResults: number): Promise<GmailMessage[]> {
 
   const allMessages: Array<{ id: string }> = [];
   const seenIds = new Set<string>();
