@@ -14,6 +14,12 @@ interface Reservation {
   renterToken?: string;
   swapStatus?: 'pending' | 'needs_pick' | 'swapped' | 'confirmed' | 'declined';
   vehicleHistory?: Array<{ at: string; from: string; to: string; source: string }>;
+  distanceIncluded?: number;
+  mileageStatus?: 'tracking' | 'done' | 'over' | 'no_gps' | 'car_changed' | 'error';
+  odometerStartAt?: string;
+  milesDriven?: number;
+  milesAllowed?: number;
+  milesOver?: number;
 }
 
 interface CarOption {
@@ -112,6 +118,31 @@ function DateTag({ date, color }: { date: string; color: 'green' | 'red' | 'gray
       {formatted}
     </span>
   );
+}
+
+/** GPS mileage badge (trips starting 2026-10-23 onward). */
+function MileageBadge({ res }: { res: Reservation }) {
+  const st = res.mileageStatus;
+  if (!st) return null;
+  const n = (v?: number) => (v == null ? '?' : Math.round(v).toLocaleString());
+  const pill = 'text-[11px] font-semibold px-2 py-0.5 rounded-full';
+  let el: JSX.Element | null = null;
+  if (st === 'tracking') {
+    const allow = res.distanceIncluded;
+    el = <span className={`${pill} bg-gray-100 text-gray-600`}>📏 Tracking miles{allow ? ` (allowance ${n(allow)} mi)` : ''}</span>;
+  } else if (st === 'done') {
+    el = <span className={`${pill} bg-green-100 text-green-700`}>📏 {n(res.milesDriven)} of {n(res.milesAllowed)} mi</span>;
+  } else if (st === 'over') {
+    el = <span className={`${pill} font-bold bg-red-100 text-red-700`}>⚠️ Over by {n(res.milesOver)} mi ({n(res.milesDriven)} of {n(res.milesAllowed)})</span>;
+  } else if (st === 'no_gps') {
+    el = <span className="text-[11px] text-gray-400">No GPS</span>;
+  } else if (st === 'car_changed') {
+    el = <span className={`${pill} bg-amber-100 text-amber-700`}>📏 Car changed mid-trip — miles not tracked</span>;
+  } else if (st === 'error') {
+    el = <span className={`${pill} bg-amber-100 text-amber-700`}>📏 Mileage reading looks wrong</span>;
+  }
+  if (!el) return null;
+  return <div className="mb-2 flex flex-wrap items-center gap-2">{el}</div>;
 }
 
 /** Swap badge + "Pick car" picker. Shown when a guest accepted a vehicle swap. */
@@ -498,6 +529,7 @@ export default function TripsPage() {
                             </div>
                             <p className="text-sm text-gray-600 mb-2">🚗 {res.vehicleYear} {res.vehicleModel}</p>
                             <SwapPicker res={res} onDone={fetchData} notify={showToast} />
+                            <MileageBadge res={res} />
                             {res.renterToken && (
                               <div className="mt-3 flex items-center gap-2">
                                 <div className="flex-1 min-w-0 bg-gray-50 rounded-lg border border-gray-200 px-3 py-2 flex items-center gap-2">
@@ -572,6 +604,7 @@ export default function TripsPage() {
                             </div>
                             <p className="text-sm text-gray-600 mb-2">🚗 {res.vehicleYear} {res.vehicleModel}</p>
                             <SwapPicker res={res} onDone={fetchData} notify={showToast} />
+                            <MileageBadge res={res} />
                           </div>
                         </div>
                       </div>

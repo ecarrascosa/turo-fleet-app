@@ -173,6 +173,35 @@ export async function getFleet(): Promise<Car[]> {
   return cars.filter(c => c.active && !EXCLUDED_CAR_IDS.has(c.carId));
 }
 
+/**
+ * Cumulative GPS odometer for a car, in METERS (WhatsGPS mileageSta.totalMileages).
+ * Returns null on any failure (bad response, network error, missing value).
+ */
+export async function getOdometerMeters(carId: string): Promise<number | null> {
+  const read = async (retry: boolean): Promise<number | null> => {
+    const token = await getToken();
+    const res = await fetch(`${BASE_URL}/location-service/position/mileageSta?carId=${encodeURIComponent(carId)}`, {
+      method: 'GET',
+      headers: { 'Token': token, 'clientType': 'pc', 'appVersion': '1.0.0', 'Accept-Language': 'en' },
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await res.json();
+    if (retry && (data.code === 'C05002' || data.msg?.includes('Token') || res.status === 401)) {
+      cachedToken = '';
+      return read(false);
+    }
+    const v = Number(data?.data?.totalMileages);
+    if (data?.ret !== 1 || !Number.isFinite(v) || v <= 0) return null;
+    return Math.round(v);
+  };
+  try {
+    return await read(true);
+  } catch (e) {
+    console.error(`[WhatsGPS] odometer read failed for ${carId}:`, e);
+    return null;
+  }
+}
+
 export async function sendCommand(carId: string, orderId: string, onOff: string, password?: string) {
   const parameterMap: Record<string, string> = { orderId, on_off: onOff };
   if (password) parameterMap.passwd = password;

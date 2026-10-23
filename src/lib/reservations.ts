@@ -56,6 +56,15 @@ export interface Reservation {
   swapStatus?: 'pending' | 'needs_pick' | 'swapped' | 'confirmed' | 'declined';
   swapAt?: string;
   vehicleHistory?: VehicleChange[];
+  /** Mileage tracking: tracking | done | over | no_gps | car_changed | error */
+  mileageStatus?: 'tracking' | 'done' | 'over' | 'no_gps' | 'car_changed' | 'error';
+  odometerStartM?: number;
+  odometerStartAt?: string;
+  odometerEndM?: number;
+  odometerEndAt?: string;
+  milesDriven?: number;
+  milesAllowed?: number;
+  milesOver?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -90,6 +99,16 @@ export async function initDB() {
   await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS swap_status VARCHAR(20)`;
   await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS swap_at TIMESTAMPTZ`;
   await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS vehicle_history JSONB DEFAULT '[]'`;
+  // Trip mileage tracking (GPS odometer at trip start/end; trips starting 2026-10-23 onward)
+  await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS odometer_start_m BIGINT`;
+  await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS odometer_start_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS odometer_end_m BIGINT`;
+  await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS odometer_end_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS odometer_car_id VARCHAR(50)`;
+  await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS miles_driven NUMERIC(8,1)`;
+  await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS miles_allowed NUMERIC(8,1)`;
+  await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS miles_over NUMERIC(8,1)`;
+  await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS mileage_status VARCHAR(20)`;
 }
 
 function generateToken(): string {
@@ -116,6 +135,14 @@ function rowToReservation(row: any): Reservation {
     swapStatus: row.swap_status || undefined,
     swapAt: row.swap_at || undefined,
     vehicleHistory: row.vehicle_history || [],
+    mileageStatus: row.mileage_status || undefined,
+    odometerStartM: row.odometer_start_m != null ? Number(row.odometer_start_m) : undefined,
+    odometerStartAt: row.odometer_start_at || undefined,
+    odometerEndM: row.odometer_end_m != null ? Number(row.odometer_end_m) : undefined,
+    odometerEndAt: row.odometer_end_at || undefined,
+    milesDriven: row.miles_driven != null ? parseFloat(row.miles_driven) : undefined,
+    milesAllowed: row.miles_allowed != null ? parseFloat(row.miles_allowed) : undefined,
+    milesOver: row.miles_over != null ? parseFloat(row.miles_over) : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
